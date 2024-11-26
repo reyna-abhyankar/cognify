@@ -70,6 +70,7 @@ def load_data():
             'ground_truth': d["solution"],
         }
         new_data.append((input_sample, ground_truth))
+    # train, val, test split
     return new_data[:30], None, new_data[30:]
 
 #================================================================
