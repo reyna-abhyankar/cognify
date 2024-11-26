@@ -2,7 +2,11 @@
     <img src="https://github.com/GenseeAI/cognify/blob/main/cognify.jpg?raw=true" alt="Cognify logo">
 </p>
 
-# Cognify: The Automated Gen-AI Workflow Optimizer
+<p align="center">
+| <a href="https://cognify-ai.readthedocs.io/en/latest/user_guide/quickstart.html"><b>Quickstart</b></a> | <a href="https://cognify-ai.readthedocs.io/en/latest/index.html"><b>Documentation</b></a> | <a href="https://mlsys.wuklab.io/posts/cognify/"><b>Blog</b></a> | <a href="https://forms.gle/Be3MD3pGPpZaUmrVA"><b>Send Feedback</b></a> |
+</p>
+
+# Cognify: The Multi-Faceted Gen-AI Workflow Optimizer
 
 Building high-quality, cost-effective generative-AI (gen-AI) applications is challenging due to the absence of systematic methods for tuning, testing, and optimizing them. 
 We introduce **Cognify**, a tool that automatically enhances generation quality and reduces costs for gen-AI workflows, including those written with LangChain, DSPy, and annotated Python. 
