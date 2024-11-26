@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cognify-ai"
+version = "0.1.0"  # Replace with your version
+description = "An optimizer for genAI workflows"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    {name = "GenseeAI Team"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "aiohttp",
+    "devtools",
+    "anthropic==0.36.2",
+    "bert-score==0.3.13",
+    "datasets",
+    "debugpy",
+    "ipywidgets",
+    "docutils",
+    "dspy-ai>=2.5.32",
+    "fastapi",
+    "fireworks-ai==0.15.4",
+    "graphviz==0.20.3",
+    "huggingface-hub==0.24.5",
+    "langchain==0.3.4",
+    "langchain-anthropic==0.2.3",
+    "langchain-aws==0.2.2",
+    "langchain-core==0.3.12",
+    "langchain-fireworks==0.2.1",
+    "langchain-google-genai==2.0.1",
+    "langchain-openai==0.2.3",
+    "langchain-text-splitters==0.3.0",
+    "langchain-together==0.2.0",
+    "langchainhub==0.1.20",
+    "langdetect==1.0.9",
+    "langgraph==0.2.39",
+    "langgraph-checkpoint==2.0.1",
+    "litellm==1.51.0",
+    "matplotlib==3.9.1.post1",
+    "numpy==1.26.4",
+    "openai==1.52.0",
+    "optuna==3.6.1",
+    "optunahub==0.1.0b0",
+    "pandas",
+    "datamodel-code-generator",
+    "astunparse"
+]
+
+[project.urls]
+Homepage = "https://github.com/WukLab/Cognify"
+
+[tool.setuptools.packages.find]
+include = ["cognify*"]  # Include only the 'cognify' package
+
+[project.scripts]
+cognify = "cognify.__main__:main"  # Entry point for your CLI tool

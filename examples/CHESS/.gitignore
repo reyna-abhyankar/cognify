@@ -1,0 +1,9 @@
+venv/
+.env
+results/
+data/
+src/__pycache__/
+.DS_Store
+*.pyc
+__pycache__/
+cognify_results/
