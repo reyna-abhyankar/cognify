@@ -62,4 +62,6 @@ Follow our [quickstart](https://cognify-ai.readthedocs.io/en/latest/user_guide/q
 
 - [User Guide](https://cognify-ai.readthedocs.io/en/latest/user_guide/): A Cognify user guide consists of a quickstart and a step-by-step tutorial
 - [Fundamentals](https://cognify-ai.readthedocs.io/en/latest/fundamentals/): Fundamental concepts about Cognify internals
-- [API Reference](https://cognify-ai.readthedocs.io/en/latest/api_ref/modules.html) 
+- [API Reference](https://cognify-ai.readthedocs.io/en/latest/api_ref/modules.html)
+
+Tell us [how you use Cognify](https://forms.gle/Be3MD3pGPpZaUmrVA)!
