@@ -16,6 +16,7 @@ from cognify.optimizer.core.unified_layer_opt import (
     BottomLevelTrialLog,
 )
 from cognify.optimizer.core.upper_layer import UpperLevelOptimization, LayerEvaluator
+from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv
 
 logger = logging.getLogger(__name__)
 
@@ -221,9 +222,11 @@ class MultiLayerOptimizationDriver:
             trans = trial_log.show_transformation()
             details = f"Trial - {trial_log.id}\n"
             details += f"Log at: {opt_path}\n"
-            details += f"Quality: {trial_log.score:.3f}, Cost per 1K invocation ($): {trial_log.price * 1000:.2f} $\n"
+            if self.base_quality is not None:
+                details += ("  Quality improves by {:.0f}%\n".format(_report_quality_impv(trial_log.score, self.base_quality)))
             if self.base_cost is not None:
-                details += "  Cost is {:.1f}% of the origin\n".format(self.base_cost / trial_log.price * 100)
+                details += ("  Cost is {:.2f}x original".format(_report_cost_reduction(trial_log.price, self.base_cost)))
+            details += f"Quality: {trial_log.score:.3f}, Cost per 1K invocation ($): {trial_log.price * 1000:.2f} $\n"
             details += trans
             with open(dump_path, "w") as f:
                 f.write(details)
