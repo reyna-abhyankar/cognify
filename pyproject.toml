@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognify-ai"
-version = "0.1.0"  # Replace with your version
-description = "An optimizer for genAI workflows"
+version = "0.1.1"
+description = "The Automated Optimizer for GenAI Workflows"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
