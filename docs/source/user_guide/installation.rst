@@ -2,20 +2,25 @@
 Installation
 *****************
 
-Build from Source
------------------
-
-First, create a virtual environment and activate it:
+You can install from pip or build from source. First, create a virtual environment and activate it:
 
 .. code-block:: bash
 
     python3.10 -m venv cognify-env
     source cognify-env/bin/activate
     
-Then, clone the repository and install the package:
+Install with pip
+----------------
 
 .. code-block:: bash
 
-    git clone https://github.com/WukLab/Cognify
-    cd Cognify
+   pip install cognify-ai
+
+Build from Source
+-----------------
+
+.. code-block:: bash
+
+    git clone https://github.com/GenseeAI/cognify
+    cd cognify
     pip install -e .

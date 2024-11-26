@@ -47,7 +47,7 @@ html_theme_options = {
     "icon_links": [
         {
             "name": "GitHub",
-            "url": "https://github.com/WukLab/Cognify",
+            "url": "https://github.com/GenseeAI/cognify"
             "icon": "fa-brands fa-github",
         },
     ],

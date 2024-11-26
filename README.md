@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="./cognify.jpg" alt="Cognify logo">
+    <img src="https://github.com/GenseeAI/cognify/blob/main/cognify.jpg?raw=true" alt="Cognify logo">
 </p>
 
 # Cognify: The Automated Gen-AI Workflow Optimizer

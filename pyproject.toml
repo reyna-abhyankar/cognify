@@ -9,7 +9,7 @@ description = "An optimizer for genAI workflows"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
-    {name = "GenseeAI Team"}
+    {name = "Cognify Team"}
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -55,7 +55,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/WukLab/Cognify"
+Homepage = "https://github.com/GenseeAI/cognify"
 
 [tool.setuptools.packages.find]
 include = ["cognify*"]  # Include only the 'cognify' package
