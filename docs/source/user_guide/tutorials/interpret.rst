@@ -34,6 +34,7 @@ The above optimize command will return a set of optimization results and their g
 Below is a sample output we got when running it. Note that because of the non-deterministic nature of generative models, you may not get the exact same results.
 
 .. code-block:: console
+
     ================ Optimization Results =================
     Num Pareto Frontier: 4
     --------------------------------------------------------

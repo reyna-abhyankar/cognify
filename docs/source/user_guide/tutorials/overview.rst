@@ -15,14 +15,12 @@ Cognify currently only optimizes language model calls. Cognify executes other mo
 To use Cognify, users provide a gen-AI workflow they write (we currently support LangChain, DSPy, and Cognify's own Python programming model). In addition, users supply the training dataset and specify a workflow quality evaluator that Cognify can use in its optimization iterations. Cognify provides several sample `evaluators <https://cognify-ai.readthedocs.io/en/latest/fundamentals/evaluator.html>`_ that you can use or extend. 
 Instead of using default configurations, you can also `customize your optimization process <https://cognify-ai.readthedocs.io/en/latest/fundamentals/optimizer/overview.html>`_ by controlling the maximum number of iterations Cognify explores, the quality vs. cost goal constraints, the set of cogs Cognify can use, and the set of models Cognify can explore.
 
-The rest of this tutorial will explain each step involved in using Cognify: 
+The rest of this tutorial will explain each step involved in using Cognify with an example `Math Problem Solver workflow <https://github.com/GenseeAI/cognify/blob/main/examples/math/workflow.py>`_: 
 
 * Porting workflows to Cognify
 * Specifying evaluators for a workflow
 * Specifying training and test dataset
 * Configuring a Cognify optimization
-
-In each section, we will explain the key concepts with example code. 
 
 .. seealso::
 
