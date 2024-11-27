@@ -6,6 +6,10 @@ Putting It All Together
 
 Now that we have gone through all the steps of using Cognify, let's put everything together for the math-solver example.
 
+.. note::
+
+    Code for this tutorial is also available at `<https://github.com/GenseeAI/cognify/tree/main/examples/math>`_.
+
 Workflow Definition
 ===================
 

@@ -27,7 +27,7 @@ Cognify is a fully automated optimizer for generative AI (gen-AI) workflows. It 
         ^^^
 
         New to Cognify? Check out our hello world example to get started. 
-        It shows how to quickly set up Cognify and optimization a simple workflow.
+        It shows how to quickly set up Cognify and optimize a simple workflow.
 
         +++
 
