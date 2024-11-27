@@ -17,7 +17,7 @@ Cognify: A Comprehensive, Multi-Faceted Gen-AI Workflow Optimizer
 
 Cognify is a fully automated gen-AI workflow optimizer that provides multi-faceted workflow optimizations.
 Cognify performs workflow-level optimization by evaluating and optimizing an entire workflow instead of at each individual workflow component.
-Built on a novel foundation of hierarchical, workflow-level optimization, Cognify improves gen-AI workflows' quality by up to 56% while reducing costs by as much as 11 times, setting a new standard in gen-AI workflow management.
+Built on a novel foundation of hierarchical, workflow-level optimization, Cognify improves gen-AI workflows' quality by up to 48% while reducing costs by as much as 9 times, setting a new standard in gen-AI workflow management.
 
 To use Cognify, users supply their workflow source code, a sample input dataset, and an evaluator for determining the generation quality.
 Cognify transforms the user-supplied workflow into a set of optimized versions with different quality-cost combinations that users can choose from and execute directly.
