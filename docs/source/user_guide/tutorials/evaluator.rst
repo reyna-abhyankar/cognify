@@ -6,7 +6,7 @@ Workflow Evaluator
 
 Cognify evaluates your workflow throughout its optimization iterations. To tell Cognify how you want it to be evaluated, you should define an evaluator for your workflow that returns a score (a positive numerical value, higher being better generation quality) for a workflow's output. This can usually be done by comparing the output to the ground truth provided in the training dataset.
 
-The evaluator function signature and its implementation are both customizable. A common type of signature includes workflow input, workflow output generation, and ground truth as the function parameters as follows. But you can also define an evaluation function with other or fewer parameters, e.g., an evaluator that only needs the generation output and ground truth to measure the score. To register a function as your evaluator, simply add @cognify.register_evaluator before it.
+The evaluator function signature and its implementation are both customizable. A common type of signature includes workflow input, workflow output generation, and ground truth as the function parameters as follows. But you can also define an evaluation function with other or fewer parameters, e.g., an evaluator that only needs the generation output and ground truth to measure the score. To register a function as your evaluator, simply add :code:`@cognify.register_evaluator` before it.
 
 .. code-block:: python
 
@@ -63,3 +63,5 @@ For the math-solver example, we will use LLM-as-a-judge to be the evaluator. The
       return assess.score
 
 The evaluator agent uses `gpt-4o-mini` as the backbone model. It also returns a structured output, ``Assessment``, to enforce the output format since we require the evaluator to return a numerical value.
+
+Cognify provides a few `sample evaluators <https://github.com/GenseeAI/cognify/tree/main/cognify/optimizer/evaluation>`_ to start with: F1 score, LLM-as-a-judge, exact match, and code execution for the HumanEval dataset used in our examples.
