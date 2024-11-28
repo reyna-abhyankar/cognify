@@ -15,7 +15,7 @@ Run Cognify in Four Simple Steps
 The first step of using Cognify is to connect it to your existing gen-AI workflow. 
 We currently support unmodified programs written in LangChain and DSPy. 
 You can also develop gen-AI workflows on our Python-based interface or modify your existing Python programs to this interface.
-Read more about our supported programming interfaces `here <https://cognify-ai.readthedocs.io/en/latest/user_guide/tutorials/interface/index.html>`_.
+Read more about our supported programming interfaces :ref:`here <cognify_tutorials_interface>`.
 
 
 2. Build the Evaluation Pipeline
@@ -23,9 +23,9 @@ Read more about our supported programming interfaces `here <https://cognify-ai.r
 
 The next step is to create an evaluation pipeline. This involves providing a training dataset and an evaluator of your workflow.
 
-- **Training Data**: Cognify relies on user supplied training data for its optimization process. Thus, you need to provide a data loader function that returns a sequence of input/output pairs served as the ground truth. Read more about training datasets and the data loader `here <https://cognify-ai.readthedocs.io/en/latest/user_guide/tutorials/dataloader.html>`_.
+- **Training Data**: Cognify relies on user supplied training data for its optimization process. Thus, you need to provide a data loader function that returns a sequence of input/output pairs served as the ground truth. Read more about training datasets and the data loader :ref:`here <cognify_tutorials_data_loader>`.
 
-- **Workflow Evaluator**: We expect users (developers of workflows) to understand how to evaluate their workflows. Thus, you need to provide an evaluator function for determining the generation quality. We provide several common evaluators such as F1 and LLM-as-a-judge that you could use to start with. Read more about the evaluator `here <https://cognify-ai.readthedocs.io/en/latest/user_guide/tutorials/evaluator.html>`_.
+- **Workflow Evaluator**: We expect users (developers of workflows) to understand how to evaluate their workflows. Thus, you need to provide an evaluator function for determining the generation quality. We provide several common evaluators such as F1 and LLM-as-a-judge that you could use to start with. Read more about the evaluator :ref:`here <cognify_tutorials_evaluator>`.
 
 3. Configure the Optimizer Behavior
 -----------------------------------
@@ -37,13 +37,13 @@ However, we highly encourage you to configure your optimization to achieve bette
 
 - **Config Optimization Settings**: Establish the overall optimization strategy by defining the maximum number of search iterations, quality constraint, or cost constraint. These settings allow you to choose whether to prioritize quality improvement, cost reduction, or minimize Cognify's optimization time.
 
-Read more about optimizer configuration `here <https://cognify-ai.readthedocs.io/en/latest/user_guide/tutorials/optimizer.html>`_.
+Read more about optimizer configuration :ref:`here <config_search>`.
 
 4. Run the Cognify CLI
 ----------------------
 
 The final step is to run Cognify, as simple as ``cognify optimize your-workflow-file``.
-Read more about Cognify's full CLI `here <https://cognify-ai.readthedocs.io/en/latest/user_guide/tutorials/cli.html>`_.
+Read more about Cognify's full CLI :ref:`here <cognify_tutorials_cli>`.
 
 A Minimal Example
 =================
@@ -162,7 +162,7 @@ Cognify evaluates your workflow throughout its optimization. To tell Cognify how
    def evaluate_answer(answer, label):
       return metric(answer, label)
 
-Read more about the evaluator `here <https://cognify-ai.readthedocs.io/en/latest/user_guide/tutorials/evaluator.html>`_.
+Read more about the evaluator :ref:`here <cognify_tutorials_evaluator>`.
 
 2.2 Register data loader
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -199,7 +199,7 @@ In this example, we use a sample dataset from from the `HotPotQA <https://hotpot
 
    The dataset is small for a quick demonstration. In practice, you should provide a larger dataset for better generalization.
 
-Read more about training datasets and the data loader `here <https://cognify-ai.readthedocs.io/en/latest/user_guide/tutorials/dataloader.html>`_.
+Read more about training datasets and the data loader :ref:`here <cognify_tutorials_data_loader>`.
 
 Step 3: Configure the Optimizer Behavior
 ----------------------------------------
@@ -221,7 +221,7 @@ The simpliest way to set the configurations is the use Cognify's default as foll
    To achieve better optimization results that meet your requirements, you should customize your optimization configuration instead of using the default.
 
 Cognify provides a set of `pre-defined configurations <https://github.com/WukLab/Cognify/blob/main/cognify/hub/search/default.py>`_ for you to start with.
-Read more about optimizer configuration `here <https://cognify-ai.readthedocs.io/en/latest/user_guide/tutorials/optimizer.html>`_.
+Read more about optimizer configuration :ref:`here <config_search>`.
 
 Wrap Up
 -------

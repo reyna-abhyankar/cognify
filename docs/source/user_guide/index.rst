@@ -27,6 +27,7 @@ Welcome! This guide provides tutorials, tips, and resources to help you get the 
     tutorials/interpret
     tutorials/all_in_one
 
+.. _examples-toctree:
 .. toctree::
     :maxdepth: 1
     :caption: Examples

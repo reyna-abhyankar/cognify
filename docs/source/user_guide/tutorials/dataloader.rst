@@ -4,7 +4,7 @@
 Data Loader
 *************
 
-The Cognify optimization process utilizes a user-provided training dataset to `evaluate <https://cognify-ai.readthedocs.io/user_guide/tutorials/dataloader.html>`_ the workflow in iterations.
+The Cognify optimization process utilizes a user-provided training dataset to :ref:`evaluate <cognify_tutorials_evaluator>` the workflow in iterations.
 Additionally, Cognify expects a validation dataset to evaluate its optimizations. 
 Optionally, users can also provide a test dataset that is different from the validation dataset for post-optimization evaluation.
 
