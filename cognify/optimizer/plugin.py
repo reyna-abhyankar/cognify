@@ -4,6 +4,8 @@ import importlib
 import logging
 from pathlib import Path
 from collections import defaultdict
+import sys
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,18 @@ def capture_module_from_fs(module_path: str):
         path = Path(module_path)
         spec = importlib.util.spec_from_file_location(path.stem, path)
         module = importlib.util.module_from_spec(spec)
+
+        # reload all cached modules in the same directory
+        to_reload = []
+        current_directory = os.path.dirname(module.__file__)
+        for k,v in sys.modules.items():
+            if hasattr(v, '__file__') and v.__file__ and v.__file__.startswith(current_directory):
+                to_reload.append(v)
+    
+        for mod in to_reload:
+            importlib.reload(mod)
+
+        # execute current script as a module
         spec.loader.exec_module(module)
     except Exception:
         logger.error(f"Failed to load module from {module_path}")
