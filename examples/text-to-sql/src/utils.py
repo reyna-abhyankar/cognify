@@ -144,5 +144,5 @@ def read_from_file(data_path, args):
                 'dataset': [data],
             }
         )
-    eval_data = [(input, None) for input in inputs]
+    eval_data = [(input, {}) for input in inputs]
     return eval_data

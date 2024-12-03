@@ -11,8 +11,8 @@ sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 import os
 from datetime import datetime
 
-from runner.run_manager import RunManager
-from runner.task import Task
+from src.runner.run_manager import RunManager
+from src.runner.task import Task
 import cognify
 
 @cognify.register_workflow

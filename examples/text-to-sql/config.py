@@ -5,7 +5,7 @@ import os
 import debugpy
 import multiprocessing as mp
 import sys
-from utils import parse_arguments, read_from_file
+from src.utils import parse_arguments, read_from_file
 
 import cognify
 import numpy as np
