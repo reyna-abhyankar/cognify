@@ -65,7 +65,7 @@ def gpt_4o_evaluate(ground_truth, image, rollback):
             base64_image1 = encode_image(f"{ground_truth}")
             base64_image2 = encode_image(f"{rollback}")
         else:
-            image = '/mnt/ssd4/lm_compiler/examples/IR_matplot_agent/benchmark_data/ground_truth/empty.png'
+            image = 'benchmark_data/ground_truth/empty.png'
             base64_image1 = encode_image(f"{image}")
             base64_image2 = encode_image(f"{image}")
     else:

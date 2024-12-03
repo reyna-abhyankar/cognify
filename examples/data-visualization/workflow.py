@@ -6,9 +6,8 @@ import dspy
 
 from tqdm import tqdm
 from agents.query_expansion_agent.agent import QueryExpansionAgent, query_expansion_agent
-from agents.plot_agent.agent import PlotAgent, PlotAgentModule, initial_coder_agent, plot_debugger_agent, refine_plot_agent
+from agents.plot_agent.agent import PlotAgent, PlotAgentModule
 from agents.visual_refine_agent import VisualRefineAgent
-from agents.visual_refine_agent.agent import visual_refinement_agent
 import logging
 import os
 import shutil
@@ -84,25 +83,27 @@ def mainworkflow(query, directory_path, example_id, input_path):
     }
 
 if __name__ == "__main__":
-    print("-- Running main workflow --")
-    data_path = 'benchmark_data'
-    
-    # open the json file 
-    data = json.load(open(f'{data_path}/96.json'))
-    
-    for item in tqdm(data):
-        novice_instruction = item['simple_instruction']
-        expert_instruction = item['expert_instruction']
-        example_id = item['id']
-        directory_path = "sample_runs_direct"
+    pass
 
-        # Check if the directory already exists
-        if not os.path.exists(directory_path):
-            os.makedirs(directory_path, exist_ok=True)
+    # print("-- Running main workflow --")
+    # data_path = 'benchmark_data'
+    
+    # # open the json file 
+    # data = json.load(open(f'{data_path}/96.json'))
+    
+    # for item in tqdm(data):
+    #     novice_instruction = item['simple_instruction']
+    #     expert_instruction = item['expert_instruction']
+    #     example_id = item['id']
+    #     directory_path = "sample_runs_direct"
+
+    #     # Check if the directory already exists
+    #     if not os.path.exists(directory_path):
+    #         os.makedirs(directory_path, exist_ok=True)
         
-        mainworkflow(
-            query=novice_instruction,
-            directory_path=directory_path,
-            example_id=example_id,
-            input_path=f'{data_path}/data/{example_id}',
-        )
+    #     mainworkflow(
+    #         query=novice_instruction,
+    #         directory_path=directory_path,
+    #         example_id=example_id,
+    #         input_path=f'{data_path}/data/{example_id}',
+    #     )
