@@ -30,7 +30,7 @@ from cognify.hub.cogs.common import (
     AddNewModuleImportInterface,
 )
 from cognify.hub.cogs.utils import dump_params, load_params
-from cognify.optimizer.evaluation.evaluator import (
+from cognify.optimizer.evaluator import (
     EvaluationResult,
     EvaluatorPlugin,
     EvalTask,

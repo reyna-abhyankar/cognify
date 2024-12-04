@@ -25,7 +25,7 @@ from cognify.optimizer import (
     clear_registry,
 )
 
-from cognify.optimizer.evaluation.evaluator import EvaluationResult
+from cognify.optimizer.evaluator import EvaluationResult
 from cognify import _logging
 
 from cognify.hub.search.default import create_search as create_default_search

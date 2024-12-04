@@ -4,7 +4,7 @@ from typing import Optional
 import json
 
 from cognify.optimizer.control_param import ControlParameter
-from cognify.optimizer.evaluation.evaluator import EvaluationResult
+from cognify.optimizer.evaluator import EvaluationResult
 from cognify.optimizer.core import driver
 
 logger = logging.getLogger(__name__)
