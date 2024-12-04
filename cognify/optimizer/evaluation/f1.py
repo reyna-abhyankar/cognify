@@ -1,4 +1,4 @@
-from utils import normalize_text
+from .utils import normalize_text
 
 def f1_score_set(pred, label):
     # Calculate true positives, false positives, and false negatives

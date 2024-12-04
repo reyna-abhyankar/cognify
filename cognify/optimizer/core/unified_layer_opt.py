@@ -516,13 +516,13 @@ class OptimizationLayer:
             logger.error(traceback.format_exc())
             raise
 
-    def _gen_opt_bar_desc(self, score, cost):
+    def _gen_opt_bar_desc(self, score, cost, total_opt_cost):
         indent = "---" * self.hierarchy_level + ">"
         if self.top_down_info.trace_back:
             opt_trace = " | ".join(self.top_down_info.trace_back)
-            return f"{indent} {self.name} in {opt_trace} | (best score: {score:.2f}, lowest cost@1000: {cost*1000:.2f} $)"
+            return f"{indent} {self.name} in {opt_trace} | (best score: {score:.2f}, lowest cost@1000: ${cost*1000:.2f}) | Total Optimization Cost: ${total_opt_cost:.2f}"
         else:
-            return f"{indent} {self.name} | (best score: {score:.2f}, lowest cost@1000: {cost*1000:.2f} $)"
+            return f"{indent} {self.name} | (best score: {score:.2f}, lowest cost@1000: ${cost*1000:.2f}) | Total Optimization Cost: ${total_opt_cost:.2f}"
 
     def _optimize(self, base_program: list[Module]):
         opt_config = self.top_down_info.opt_config
@@ -539,7 +539,7 @@ class OptimizationLayer:
                     cost if self._lowest_cost is None else min(self._lowest_cost, cost)
                 )
                 pbar.set_description(
-                    self._gen_opt_bar_desc(self._best_score, self._lowest_cost)
+                    self._gen_opt_bar_desc(self._best_score, self._lowest_cost, self.opt_cost)
                 )
             pbar.update(1)
 
@@ -548,7 +548,7 @@ class OptimizationLayer:
         with tqdm(
             total=num_current_trials + opt_config.n_trials,
             initial=num_current_trials,
-            desc=self._gen_opt_bar_desc(initial_score, initial_cost),
+            desc=self._gen_opt_bar_desc(initial_score, initial_cost, self.opt_cost),
             leave=self.hierarchy_level == 0,
             position=pbar_position,
         ) as pbar:
