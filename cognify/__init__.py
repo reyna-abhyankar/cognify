@@ -12,8 +12,6 @@ from .frontends.dspy.connector import PredictModel, as_predict
 from .frontends.langchain.connector import RunnableModel, as_runnable
 
 from cognify import llm, optimizer
-from cognify.hub import metric
-from cognify.hub.metric import f1_score_set
 
 from cognify.run.evaluate import evaluate, load_workflow
 from cognify.run.optimize import optimize
@@ -35,7 +33,6 @@ __all__ = [
     "llm",
     "optimizer",
     "cogs",
-    "metric",
     "evaluate",
     "load_workflow",
     "optimize",

@@ -150,17 +150,16 @@ Next, we will define the evaluator and training data used for the Cognify optimi
 2.1 Register evaluator
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Cognify evaluates your workflow throughout its optimization. To tell Cognify how you want it to be evaluated, you need to define the evaluator. Cognify provides several common evaluator implementation. If you choose one of them, you can simply import from ``cognify.metric``. In this example, we use the ``F1`` score to quantify the similarity between the predicted answer and the ground truth. Cognify already provides an implementation of this metric. So the evaluator looks like this:
+Cognify evaluates your workflow throughout its optimization. To tell Cognify how you want it to be evaluated, you need to define the evaluator. Cognify provides several common evaluator implementation. If you choose one of them, you can simply import them from ``cognify.hub.evaluators``. In this example, we use the ``F1`` score to quantify the similarity between the predicted answer and the ground truth. Cognify already provides an implementation of this metric. So the evaluator looks like this:
 
 .. code-block:: python
 
    import cognify
-
-   metric = cognify.metric.f1_score_str
+   from cognify.hub.evaluators import f1_score_str
 
    @cognify.register_evaluator
    def evaluate_answer(answer, label):
-      return metric(answer, label)
+      return f1_score_str(answer, label)
 
 Read more about the evaluator :ref:`here <cognify_tutorials_evaluator>`.
 
