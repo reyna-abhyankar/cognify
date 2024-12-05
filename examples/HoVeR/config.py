@@ -1,10 +1,11 @@
 import cognify
+from cognify.hub.evaluators import f1_score_set
 
 @cognify.register_opt_score_fn
 def doc_f1(pred_docs, gold_docs):
     pred_docs = set(pred_docs)
     gold_docs = set(gold_docs)
-    return cognify.metric.f1_score_set(pred_docs, gold_docs)
+    return f1_score_set(pred_docs, gold_docs)
 
 train_size = 100
 val_size = 50

@@ -244,7 +244,7 @@ class LMFewShot(DynamicCogBase):
                 logger.info(f"Loading from {log_path}")
                 return load_params(log_path)
             
-        from cognify.optimizer.evaluation.evaluator import EvalTask
+        from cognify.optimizer.evaluator import EvalTask
         eval_task = EvalTask(
             script_path=script_path,
             args=script_args,

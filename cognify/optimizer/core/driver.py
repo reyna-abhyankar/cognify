@@ -4,7 +4,7 @@ from typing import Union, Optional
 import logging
 import re
 
-from cognify.optimizer.evaluation.evaluator import (
+from cognify.optimizer.evaluator import (
     EvaluationResult,
     EvaluatorPlugin,
     EvalTask,

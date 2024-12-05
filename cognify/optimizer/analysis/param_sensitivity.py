@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, Future
 
 from cognify.graph.program import Module
 from cognify.hub.cogs.common import CogBase
-from cognify.optimizer.evaluation.evaluator import (
+from cognify.optimizer.evaluator import (
     EvaluatorPlugin,
     EvalTask,
     EvaluationResult,
