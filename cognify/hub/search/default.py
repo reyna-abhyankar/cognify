@@ -9,6 +9,8 @@ from cognify.hub.cogs.reasoning import ZeroShotCoT, PlanBefore
 from cognify.optimizer.control_param import ControlParameter
 from dataclasses import dataclass
 
+from opentelemetry import trace
+tracer = trace.get_tracer("cognify.tracer")
 
 @dataclass
 class SearchParams:
@@ -202,6 +204,11 @@ def create_search(
         opt_log_dir,
         model_selection_cog,
     )
+
+    with tracer.start_as_current_span("create_search") as span:
+        span.set_attribute("search_type", search_type)
+        span.set_attribute("n_trials", n_trials)
+        span.set_attribute("quality_constraint", quality_constraint)
 
     if search_type == "light":
         return create_light_search(search_params)

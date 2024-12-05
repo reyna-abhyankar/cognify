@@ -17,6 +17,23 @@ from cognify.run.evaluate import evaluate
 from cognify.run.inspect import inspect
 from cognify._logging import _configure_logger
 
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    ConsoleSpanExporter
+)
+
+provider = TracerProvider()
+processor = BatchSpanProcessor(ConsoleSpanExporter())
+provider.add_span_processor(processor)
+
+# Set global default tracer provider
+trace.set_tracer_provider(provider)
+
+# Creates a tracer from the global tracer provider
+tracer = trace.get_tracer("cognify.tracer")
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,6 +72,17 @@ def optimize_routine(opt_args: OptimizationArgs):
     (train_set, val_set, test_set), control_param = parse_pipeline_config_file(
         opt_args.config
     )
+
+    with tracer.start_as_current_span("optimize_routine") as span:
+        len_train = len(train_set) if train_set else 0
+        len_val = len(val_set) if val_set else 0
+        len_test = len(test_set) if test_set else 0
+        print("Trace optimizer")
+        span.set_attribute("train_set_size", len_train)
+        span.set_attribute("val_set_size", len_val)
+        span.set_attribute("test_set_size", len_test)
+        # span.set_attribute("control_param", control_param.to_dict())
+    #exit(0)
 
     cost, frontier, opt_logs = optimize(
         script_path=opt_args.workflow,
