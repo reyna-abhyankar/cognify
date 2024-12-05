@@ -39,7 +39,7 @@ However, we highly encourage you to configure your optimization to achieve bette
 
 Read more about optimizer configuration :ref:`here <config_search>`.
 
-4. Run the Cognify CLI
+4. Run the Cognify Command-Line Interface (CLI)
 ----------------------
 
 The final step is to run Cognify, as simple as ``cognify optimize your-workflow-file``.

@@ -1,10 +1,10 @@
 .. _cognify_tutorials_cli:
 
 *************
-Cognify CLI
+Executing Cognify
 *************
 
-Cognify provides a simple CLI to optimize, evaluate, and inspect generative AI workflows.
+Cognify provides a simple command-line interface (CLI) to optimize, evaluate, and inspect generative AI workflows.
 
 Basic Syntax
 ====================
