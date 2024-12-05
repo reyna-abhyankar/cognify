@@ -1,7 +1,7 @@
 from cognify.hub.cogs.fewshot import LMFewShot
 from cognify.hub.cogs.scaffolding import LMScaffolding
 from cognify.hub.cogs import reasoning, model_selection, common
-from cognify.optimizer.evaluation.evaluator import EvaluationResult, EvaluatorPlugin, EvalTask
+from cognify.cognify.optimizer.evaluator import EvaluationResult, EvaluatorPlugin, EvalTask
 import runpy
 import uuid
 import multiprocessing as mp

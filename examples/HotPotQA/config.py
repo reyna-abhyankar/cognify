@@ -1,8 +1,9 @@
 import cognify
+from cognify.hub.evaluators import f1_score_str
 
 @cognify.register_opt_score_fn
 def answer_f1(answer: str, ground_truth: str):
-    return cognify.metric.f1_score_str(answer, ground_truth)
+    return f1_score_str(answer, ground_truth)
 
 def formatting(item):
     return (

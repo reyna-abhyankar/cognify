@@ -5,7 +5,7 @@ import logging
 
 from cognify.optimizer.control_param import ControlParameter
 from cognify.optimizer.core import driver
-from cognify.optimizer.evaluation.evaluator import (
+from cognify.optimizer.evaluator import (
     EvaluatorPlugin,
     EvaluationResult,
     EvalTask,

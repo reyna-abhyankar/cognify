@@ -1,6 +1,4 @@
-from pydantic import BaseModel, Field
-from abc import ABC, abstractmethod
-
+from .utils import normalize_text
 
 def f1_score_set(pred, label):
     # Calculate true positives, false positives, and false negatives
@@ -26,25 +24,6 @@ def f1_score_ordered(pred, label):
         return 0
     f1 = 2 * precision * recall / (precision + recall)
     return f1
-
-
-import re
-import string
-import unicodedata
-
-
-def normalize_text(s):
-    # Normalize Unicode characters
-    s = unicodedata.normalize("NFD", s)
-    # Convert to lowercase
-    s = s.lower()
-    # Remove punctuation
-    s = "".join(ch for ch in s if ch not in string.punctuation)
-    # Remove articles (a, an, the)
-    s = re.sub(r"\b(a|an|the)\b", " ", s)
-    # Fix extra whitespaces
-    s = " ".join(s.split())
-    return s
 
 def f1_score_str(pred, label):
     """F1 score for two strings

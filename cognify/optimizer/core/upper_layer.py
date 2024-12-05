@@ -8,7 +8,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, Future
 
 from cognify._signal import _should_exit
-from cognify.optimizer.evaluation.evaluator import (
+from cognify.optimizer.evaluator import (
     EvaluationResult,
     GeneralEvaluatorInterface,
 )

@@ -7,7 +7,7 @@ import shutil
 from cognify._signal import _should_exit, _init_exit_gracefully
 from cognify.optimizer.control_param import ControlParameter
 from cognify.optimizer.core import driver
-from cognify.optimizer.evaluation.evaluator import (
+from cognify.optimizer.evaluator import (
     EvaluatorPlugin,
     EvalTask,
     EvaluationResult,

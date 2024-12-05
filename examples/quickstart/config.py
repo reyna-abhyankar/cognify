@@ -3,12 +3,11 @@
 #================================================================
 
 import cognify
-
-metric = cognify.metric.f1_score_str
+from cognify.hub.evaluators import f1_score_str
 
 @cognify.register_evaluator
 def evaluate_answer(answer, label):
-    return metric(answer, label)
+    return f1_score_str(answer, label)
 
 #================================================================
 # Data Loader
