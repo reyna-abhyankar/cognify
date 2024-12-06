@@ -33,6 +33,8 @@ Welcome! This guide provides tutorials, tips, and resources to help you get the 
     :caption: Examples
 
     ../examples/HotPotQA/ref
-    ../examples/HoVeR/ref
+    ../examples/doc-retrieval/ref
     ../examples/Codegen/ref
     ../examples/math/ref
+    ../examples/data-visualization/ref
+    ../examples/text-to-sql/ref
