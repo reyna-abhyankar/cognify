@@ -524,12 +524,25 @@ class StructuredModel(Model):
             )
         else:
             model = model_kwargs.pop("model")
-            response = completion(
-                model,
-                self._get_api_compatible_messages(messages),
-                response_format=self.output_format.schema,
-                **model_kwargs,
-            )
+            messages_updated = self._get_api_compatible_messages(messages)
+
+            if model.startswith("ollama"):
+                for msg in messages_updated:
+                    msg["content"] = msg["content"][0]["text"]
+                response = completion(
+                    model,
+                    messages_updated,
+                    format=self.output_format.schema.model_json_schema(),
+                    **model_kwargs,
+                )
+            else:
+                response = completion(
+                    model,
+                    messages_updated,
+                    response_format=self.output_format.schema,
+                    **model_kwargs,
+                )
+            
             return response
 
     @override

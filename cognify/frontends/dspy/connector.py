@@ -71,7 +71,14 @@ class PredictModel(dspy.Module):
 
         # lm config
         lm_client: dspy.LM = dspy.settings.get("lm", None)
-        assert lm_client, "Expected lm client, got none"
+
+        should_hint = False
+        if lm_client.model.startswith("ollama"):
+            # ollama prompts us to include some json instruction in the system prompt
+            should_hint = True
+            system_prompt += " Please provide your answer in JSON format according to the instructions provided next."
+        
+        assert lm_client, "Expected lm to be configured in dspy"
         lm_config = LMConfig(model=lm_client.model, kwargs=lm_client.kwargs)
 
         # always treat as structured to provide compatiblity with forward function
@@ -79,7 +86,8 @@ class PredictModel(dspy.Module):
             agent_name=name,
             system_prompt=system_prompt,
             input_variables=input_variables,
-            output_format=OutputFormat(schema=self.output_schema),
+            output_format=OutputFormat(schema=self.output_schema, 
+                                       should_hint_format_in_prompt=should_hint),
             lm_config=lm_config,
         )
 
