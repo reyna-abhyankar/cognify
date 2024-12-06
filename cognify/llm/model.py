@@ -528,7 +528,12 @@ class StructuredModel(Model):
 
             if model.startswith("ollama"):
                 for msg in messages_updated:
-                    msg["content"] = msg["content"][0]["text"]
+                    concatenated_content = ""
+                    for entry in msg["content"]:
+                        assert entry["type"] != "image_url", "Image support for ollama coming soon."
+                        concatenated_content += entry["text"]
+                    msg["content"] = concatenated_content
+
                 response = completion(
                     model,
                     messages_updated,
