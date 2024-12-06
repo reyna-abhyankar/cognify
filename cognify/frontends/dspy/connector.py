@@ -72,12 +72,6 @@ class PredictModel(dspy.Module):
         # lm config
         lm_client: dspy.LM = dspy.settings.get("lm", None)
 
-        should_hint = False
-        if lm_client.model.startswith("ollama"):
-            # ollama prompts us to include some json instruction in the system prompt
-            should_hint = True
-            system_prompt += " Please provide your answer in JSON format according to the instructions provided next."
-        
         assert lm_client, "Expected lm to be configured in dspy"
         lm_config = LMConfig(model=lm_client.model, kwargs=lm_client.kwargs)
 
@@ -86,8 +80,7 @@ class PredictModel(dspy.Module):
             agent_name=name,
             system_prompt=system_prompt,
             input_variables=input_variables,
-            output_format=OutputFormat(schema=self.output_schema, 
-                                       should_hint_format_in_prompt=should_hint),
+            output_format=OutputFormat(schema=self.output_schema),
             lm_config=lm_config,
         )
 
@@ -111,6 +104,9 @@ class PredictModel(dspy.Module):
                 messages, inputs
             )  # kwargs have already been set when initializing cog_lm
             kwargs: dict = result.model_dump()
+            for k,v in kwargs.items():
+                if not v:
+                    raise ValueError(f"{self.cog_lm.name} did not generate a value for field `{k}`, consider using a larger model for structured output")
             return dspy.Prediction(**kwargs)
 
 

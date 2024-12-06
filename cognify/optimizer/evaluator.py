@@ -314,8 +314,9 @@ class EvalTask:
                 state = {**input, **result, **label}
                 score = evaluator.score(state)
             except Exception as e:
-                # catch any errors thrown during the workflow and treat as an invalid result
-                logger.error(f"Workflow execution threw error for task {task_index}: {e}. Automatic 0")
+                # catch any errors thrown during the workflow and treat as an invalid result by scoring 0
+                # Note: scoring 0 may be problematic if the evaluator's range includes negative numbers
+                logger.error(f"Workflow execution threw error for task {task_index}: {e}. Automatic score of 0")
                 end_time = time.time()  # this isn't accurate if the process is interrupted
             finally:
                 # get price and demo of running the program
