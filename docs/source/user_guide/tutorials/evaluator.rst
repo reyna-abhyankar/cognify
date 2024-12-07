@@ -41,5 +41,7 @@ Depending on your task, it may be difficult to find or write a suitable evaluato
   * We **highly recommend** tailoring the criteria to your task. For example, if you are looking for conciseness, the system prompt should instruct the judge to rate the answer based on its length. 
 
   * We also recommend you provide some **few-shot examples** to the model with human evaluation at different quality levels.
+
+  * For more information on how best to use LLM-as-a-judge, you can refer to this `survey paper <https://llm-as-a-judge.github.io/>`_.
 * `Majority vote`: if you are unsure of the quality of an evaluator's output, you can use a majority vote from multiple evaluators. This can be done by averaging the scores from multiple evaluators or using a custom weighting scheme.
 * `Training your own model`: if you have sufficient labeled examples in the format of ``(generated output, human evaluation)`` pairs, you can train a model of your choice as the evaluator. 
