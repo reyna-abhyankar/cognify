@@ -1,5 +1,5 @@
 import importlib.util
-from typing import Callable, Any
+from typing import Callable, Any, Literal
 import importlib
 import logging
 from pathlib import Path
@@ -47,7 +47,14 @@ class OptimizerSchema:
         return schema
 
 
-def capture_module_from_fs(module_path: str):
+from dataclasses import dataclass
+@dataclass
+class TranslateData:
+    is_manually_translated: bool
+    is_langchain: bool
+    is_dspy: bool
+
+def capture_module_from_fs(module_path: str, mode: Literal["config", "score", "workflow"] = "workflow") -> Module:
     logger.debug(f"obtain module at: {module_path}")
 
     try:
@@ -71,10 +78,15 @@ def capture_module_from_fs(module_path: str):
         logger.error(f"Failed to load module from {module_path}")
         raise
 
-    # translate
-    num_translated = 0
-    num_langchain = 0
-    num_dspy = 0
+    if mode == "workflow":
+        module, _ = translate_workflow(module)
+    else:
+        return module
+
+
+def translate_workflow(module):
+    is_langchain = False
+    is_dspy = False
     named_runnables = defaultdict(int)
     
     # lazy import
@@ -86,7 +98,11 @@ def capture_module_from_fs(module_path: str):
     # check if user has manually wrapped their runnables
     is_manually_translated = False
     for k, v in module.__dict__.items():
-        if isinstance(v, RunnableModel) or isinstance(v, PredictModel):
+        if isinstance(v, RunnableModel):
+            is_langchain = True
+        if isinstance(v, PredictModel):
+            is_dspy = True
+        if is_langchain or is_dspy:
             is_manually_translated = True
             break
 
@@ -98,19 +114,12 @@ def capture_module_from_fs(module_path: str):
                 named_predictors = v.named_predictors()
                 for name, predictor in named_predictors:
                     module.__dict__[k].__dict__[name] = PredictModel(name, predictor)
-                    num_translated += 1
-                    num_dspy += 1
+                    is_dspy = True
             elif isinstance(v, RunnableSequence):
                 # ensure unique naming for runnable
                 name = k if named_runnables[k] == 0 else f"{k}_{named_runnables[k]}"
                 module.__dict__[k] = RunnableModel(name, v)
                 named_runnables[k] += 1
-                num_langchain += 1
+                is_langchain = True
 
-    with tracer.start_as_current_span("capture_module_from_fs") as span:
-        span.set_attribute("is_manually_translated", is_manually_translated)
-        span.set_attribute("is_langchain", num_langchain > 0)
-        span.set_attribute("is_dspy", num_dspy > 0)
-    exit(0)
-
-    return module
+    return module, TranslateData(is_manually_translated, is_langchain, is_dspy)
