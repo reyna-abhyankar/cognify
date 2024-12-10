@@ -17,15 +17,49 @@ from cognify.run.evaluate import evaluate
 from cognify.run.inspect import inspect
 from cognify._logging import _configure_logger
 
+# tracing
+import os
+import socket
+import hashlib
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import (
-    BatchSpanProcessor,
-    ConsoleSpanExporter
-)
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-provider = TracerProvider()
-processor = BatchSpanProcessor(ConsoleSpanExporter())
+def generate_user_identifier():
+    """
+    Generate a consistent, anonymized user identifier.
+    
+    Creates a hash based on:
+    - Hostname
+    - IP address
+    - Current process ID
+    """
+    # Get basic system information
+    hostname = socket.gethostname()
+    try:
+        # Get primary IP address
+        ip_address = socket.gethostbyname(hostname)
+    except Exception:
+        ip_address = 'unknown'
+    
+    # Create a consistent hash
+    identifier_string = f"{hostname}_{ip_address}"
+    print(identifier_string)
+    user_hash = hashlib.sha256(identifier_string.encode()).hexdigest()
+    print(user_hash)
+    
+    return user_hash
+
+resource = Resource.create(attributes={
+    "service.name": "cognify",
+    "user.id": generate_user_identifier()
+})
+
+provider = TracerProvider(resource=resource)
+# processor = BatchSpanProcessor(ConsoleSpanExporter())
+processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://wuklab-01.ucsd.edu:4318/v1/traces"))
 provider.add_span_processor(processor)
 
 # Set global default tracer provider
@@ -39,6 +73,9 @@ logger = logging.getLogger(__name__)
 
 def from_cognify_args(args):
     if args.mode == "optimize":
+        with tracer.start_as_current_span("from_cognify_args") as span:
+            span.set_attribute("resume", args.resume)
+            span.set_attribute("force", args.force)
         return OptimizationArgs.from_cli_args(args)
     elif args.mode == "evaluate":
         return EvaluationArgs.from_cli_args(args)
@@ -72,17 +109,6 @@ def optimize_routine(opt_args: OptimizationArgs):
     (train_set, val_set, test_set), control_param = parse_pipeline_config_file(
         opt_args.config
     )
-
-    with tracer.start_as_current_span("optimize_routine") as span:
-        len_train = len(train_set) if train_set else 0
-        len_val = len(val_set) if val_set else 0
-        len_test = len(test_set) if test_set else 0
-        print("Trace optimizer")
-        span.set_attribute("train_set_size", len_train)
-        span.set_attribute("val_set_size", len_val)
-        span.set_attribute("test_set_size", len_test)
-        # span.set_attribute("control_param", control_param.to_dict())
-    #exit(0)
 
     cost, frontier, opt_logs = optimize(
         script_path=opt_args.workflow,

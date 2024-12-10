@@ -95,8 +95,8 @@ def capture_module_from_fs(module_path: str):
 
     with tracer.start_as_current_span("capture_module_from_fs") as span:
         span.set_attribute("is_manually_translated", is_manually_translated)
-        span.set_attribute("num_translated", num_translated)
-        span.set_attribute("num_langchain", num_langchain)
-        span.set_attribute("num_dspy", num_dspy)
+        span.set_attribute("is_langchain", num_langchain > 0)
+        span.set_attribute("is_dspy", num_dspy > 0)
+    exit(0)
 
     return module
