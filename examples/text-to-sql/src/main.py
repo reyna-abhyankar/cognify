@@ -49,7 +49,7 @@ def parse_arguments() -> argparse.Namespace:
         "--checkpoint_dir", type=str, required=False, help="Directory for checkpoints."
     )
     parser.add_argument(
-        "--log_level", type=str, default="warning", help="Logging level."
+        "--log_level", type=str, default="error", help="Logging level."
     )
     args = parser.parse_args()
 
@@ -80,6 +80,13 @@ def load_dataset(data_path: str) -> List[Dict[str, Any]]:
         dataset = json.load(file)
     return dataset
 
+def eval(stats):
+    """
+    Evaluate the statistics of the run.
+    """
+    correct = any(vs['correct'] == 1 for vs in stats['counts'].values())
+    return 1.0 if correct else 0.0
+
 
 if __name__ == "__main__":
     args = parse_arguments()
@@ -95,9 +102,13 @@ if __name__ == "__main__":
         )
     eval_data = [(input, None) for input in inputs]
     
-    from cognify.cognify.optimizer.evaluator import EvaluationResult, EvaluatorPlugin, EvalTask 
+    from cognify.optimizer.evaluator import (
+        EvaluatorPlugin,
+        EvaluationResult,
+        EvalTask,
+    )
     plain_task = EvalTask(
-        script_path='src/cognify_worker.py',
+        script_path='workflow.py',
         args=[],
         other_python_paths=[],
         all_params={},
@@ -108,7 +119,8 @@ if __name__ == "__main__":
         trainset=None,
         evalset=None,
         testset=eval_data,
-        n_parallel=2,
+        evaluator_fn=eval,
+        n_parallel=40,
     )
     eval_result = evaluator.get_score('test', plain_task, show_process=True)
     print(eval_result)

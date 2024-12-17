@@ -10,6 +10,18 @@ sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 
 import os
 from datetime import datetime
+from src.pipeline.workflow_builder import (
+    build_pipeline,
+    keyword_extraction,
+    entity_retrieval,
+    context_retrieval,
+    column_filtering,
+    table_selection,
+    column_selection,
+    candidate_generation,
+    revision,
+    evaluation
+)
 
 from src.runner.run_manager import RunManager
 from src.runner.task import Task
@@ -24,7 +36,7 @@ def worker(args, dataset):
     
     run_start_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     task = Task(dataset[0])
-    result_dir = f"results/{task.db_id}/{task.question_id}/{run_start_time}"
+    result_dir = f"opt_f1_results/{task.db_id}/{task.question_id}/{run_start_time}"
     if not os.path.exists(result_dir):
         os.makedirs(result_dir, exist_ok=True)
 
@@ -35,5 +47,5 @@ def worker(args, dataset):
     result = run_manager.worker(task)
     run_manager.task_done(result, show_progress=False) 
 
-    return run_manager.statistics_manager.statistics.to_dict()
+    return {'stats': run_manager.statistics_manager.statistics.to_dict()}
 

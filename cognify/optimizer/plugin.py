@@ -29,7 +29,7 @@ class OptimizerSchema:
 
     @classmethod
     def capture(cls, script_path: str) -> "OptimizerSchema":
-        clear_registry()
+        # clear_registry()
         capture_module_from_fs(script_path)
         opt_targets = get_registered_opt_modules()
         if not opt_targets:
@@ -52,15 +52,15 @@ def capture_module_from_fs(module_path: str):
         spec = importlib.util.spec_from_file_location(path.stem, path)
         module = importlib.util.module_from_spec(spec)
 
-        # reload all cached modules in the same directory
-        to_reload = []
-        current_directory = os.path.dirname(module.__file__)
-        for k,v in sys.modules.items():
-            if hasattr(v, '__file__') and v.__file__ and v.__file__.startswith(current_directory):
-                to_reload.append(v)
+        # # reload all cached modules in the same directory
+        # to_reload = []
+        # current_directory = os.path.dirname(module.__file__)
+        # for k,v in sys.modules.items():
+        #     if hasattr(v, '__file__') and v.__file__ and v.__file__.startswith(current_directory):
+        #         to_reload.append(v)
     
-        for mod in to_reload:
-            importlib.reload(mod)
+        # for mod in to_reload:
+        #     importlib.reload(mod)
 
         # execute current script as a module
         spec.loader.exec_module(module)

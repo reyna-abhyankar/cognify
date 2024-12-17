@@ -33,3 +33,4 @@ optunahub==0.1.0b0
 pandas
 datamodel-code-generator
 astunparse
+scikit-learn

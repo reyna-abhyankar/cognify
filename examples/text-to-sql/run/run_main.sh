@@ -1,6 +1,6 @@
 data_mode='dev' # Options: 'dev', 'train' 
 
-data_path="/mnt/ssd4/lm_compiler/clean_examples/CHESS/data/dev/sub_sampled_bird_dev_set.json" # UPDATE THIS WITH THE PATH TO THE TARGET DATASET
+data_path="/mnt/data/ssd2/zijian/cognify/examples/text-to-sql/data/dev/sub_sampled_bird_dev_set.json" # UPDATE THIS WITH THE PATH TO THE TARGET DATASET
 # data_path="/mnt/ssd4/lm_compiler/examples/CHESS/data/dev/other_sub_sampled.json" # UPDATE THIS WITH THE PATH TO THE TARGET DATASET
 
 pipeline_nodes='keyword_extraction+entity_retrieval+context_retrieval+column_filtering+table_selection+column_selection+candidate_generation+revision+evaluation'

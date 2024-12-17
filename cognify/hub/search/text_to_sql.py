@@ -17,7 +17,7 @@ def create_text_to_sql_search(search_params: SearchParams) -> ControlParameter:
 
     # ================= Inner Loop Config =================
     inner_opt_config = flow.OptConfig(
-        n_trials=5,
+        n_trials=20,
         throughput=2,
     )
     inner_loop_config = driver.LayerConfig(
@@ -28,9 +28,9 @@ def create_text_to_sql_search(search_params: SearchParams) -> ControlParameter:
 
     # ================= Ensemble Options =================
     def add_ensemble_option(lm_name):
-        usc_ensemble = ensemble.UniversalSelfConsistency(3, temperature=0.9)
+        usc_ensemble = ensemble.UniversalSelfConsistency(3, temperature=0.7)
         ensemble_param = ensemble.ModuleEnsemble(
-            [usc_ensemble]
+            options=[NoChange(), usc_ensemble]
         )
         ensemble_param.module_name = lm_name
         return ensemble_param
@@ -42,7 +42,7 @@ def create_text_to_sql_search(search_params: SearchParams) -> ControlParameter:
     ]
 
     # ================= Outer Loop Config =================
-    outer_trials = search_params.n_trials // 5
+    outer_trials = 0
     if outer_trials == 0:
         outer_trials += 1
 
@@ -58,15 +58,13 @@ def create_text_to_sql_search(search_params: SearchParams) -> ControlParameter:
         opt_config=outer_opt_config,
     )
 
-    opt_layer_configs = [outer_loop_config, inner_loop_config]
+    opt_layer_configs = [inner_loop_config]
 
     optimize_control_param = ControlParameter(
         opt_layer_configs=opt_layer_configs,
         opt_history_log_dir=search_params.opt_log_dir,
         evaluator_batch_size=search_params.evaluator_batch_size,
         quality_constraint=search_params.quality_constraint,
-        train_down_sample=50,
-        val_down_sample=25
     )
     return optimize_control_param
 

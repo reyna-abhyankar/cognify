@@ -27,7 +27,7 @@ class RunManager:
             self.result_directory = result_directory
         else:
             self.result_directory = self.get_result_directory()
-        print(f"Result directory: {self.result_directory}")
+        # print(f"Result directory: {self.result_directory}")
         self.statistics_manager = StatisticsManager(self.result_directory)
         self.tasks: List[Task] = []
         self.total_number_of_tasks = 0
@@ -70,7 +70,7 @@ class RunManager:
             task = Task(data)
             self.tasks.append(task)
         self.total_number_of_tasks = len(self.tasks)
-        print(f"Total number of tasks: {self.total_number_of_tasks}")
+        # print(f"Total number of tasks: {self.total_number_of_tasks}")
 
     def run_tasks(self):
         """Runs the tasks using a pool of workers."""

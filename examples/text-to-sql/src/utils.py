@@ -115,7 +115,7 @@ def parse_arguments() -> argparse.Namespace:
         "--checkpoint_dir", type=str, required=False, help="Directory for checkpoints."
     )
     parser.add_argument(
-        "--log_level", type=str, default="warning", help="Logging level."
+        "--log_level", type=str, default="critical", help="Logging level."
     )
     args = parser.parse_args(cmd_args)
 

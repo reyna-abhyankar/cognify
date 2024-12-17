@@ -1,3 +1,4 @@
+from enum import Enum
 import os
 import sys
 import json
@@ -10,6 +11,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 import multiprocessing as mp
 import textwrap
+import traceback
 from cognify.optimizer.utils import _cognify_tqdm as tqdm
 from cognify.optimizer.registry import get_registered_opt_score_fn
 
@@ -31,6 +33,10 @@ def default_reduer(xs):
 # {module_name: demo}
 TDemoInTrial = dict[str, Demonstration]
 
+class TaskStatus(Enum):
+    SUCCESS = 1
+    INTERRUPTED = 2
+    FAILED = 3
 
 class EvaluationResult:
     def __init__(
@@ -286,9 +292,9 @@ class EvalTask:
         _stay_alert()
         
         try:
-            if not isinstance(input, dict):
+            if input is not None and not isinstance(input, dict):
                 raise ValueError(f"Input from data loader should be a dict, got {input}")
-            if not isinstance(label, dict):
+            if label is not None and not isinstance(label, dict):
                 raise ValueError(f"Label from data loader should be a dict, got {label}")
             
             schema, module_pool = self.load_and_transform()
@@ -302,47 +308,45 @@ class EvalTask:
             
             start_time = time.time()
             end_time = time.time()
+            status = TaskStatus.SUCCESS
             score = 0.0
             result = None   # this value is unused in `get_score`, so we can set this to `None` -- should refactor this
             price = 0.0
             lm_to_demo = {}
 
-            try:
-                result = schema.program(**input)
-                end_time = time.time()
-                # merge input/result/label to a single dict
-                state = {**input, **result, **label}
-                score = evaluator.score(state)
-            except Exception as e:
-                # catch any errors thrown during the workflow and treat as an invalid result by scoring 0
-                # Note: scoring 0 may be problematic if the evaluator's range includes negative numbers
-                logger.error(f"Workflow execution threw error for task {task_index}: {e}. Automatic score of 0")
-                end_time = time.time()  # this isn't accurate if the process is interrupted
-            finally:
-                # get price and demo of running the program
+            result = schema.program(**input)
+            end_time = time.time()
+            # merge input/result/label to a single dict
+            state = {**(input or {}), **(result or {}), **(label or {})}
+            score = evaluator.score(state)
+        except KeyboardInterrupt:
+            status = TaskStatus.INTERRUPTED
+        except Exception as e:
+            # catch any errors thrown during the workflow and treat as an invalid result by scoring 0
+            # Note: scoring 0 may be problematic if the evaluator's range includes negative numbers
+            logger.error(f"Workflow execution threw error for task {task_index}: {e}. Automatic score of 0")
+            end_time = time.time()  # this isn't accurate if the process is interrupted
+            status = TaskStatus.FAILED
+        finally:
+            # get price and demo of running the program
+            if status == TaskStatus.SUCCESS:
                 for lm in Module.all_of_type(module_pool.values(), Model):
                     price += lm.get_total_cost()
                     demo = lm.get_last_step_as_demo()
                     if demo is not None:
                         lm_to_demo[lm.name] = demo
 
-                q.put(
-                    (
-                        task_index,
-                        True,
-                        result, # this value is unused in `get_score`
-                        score,
-                        price,
-                        lm_to_demo,
-                        end_time - start_time,
-                    )
+            q.put(
+                (
+                    task_index,
+                    status != TaskStatus.INTERRUPTED,
+                    result, # this value is unused in `get_score`
+                    score,
+                    price,
+                    lm_to_demo,
+                    end_time - start_time,
                 )
-        except KeyboardInterrupt:
-            q.put((task_index, False, None, 0.0, 0.0, None, 0.0))
-        except Exception as e:
-            q.put((task_index, False, None, 0.0, 0.0, None, 0.0))
-            raise
-        finally:
+            )
             sema.release()
 
     def show_opt_trace(self) -> str:
