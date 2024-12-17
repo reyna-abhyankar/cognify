@@ -150,7 +150,7 @@ class OptimizationLayer:
         self.base_cost = base_cost
         self.hierarchy_level = hierarchy_level
         self._should_stop = False # flag to early stop when convergence
-        self._patience_budget = None
+        self._patience_budget = None # number of iterations to wait for improvement before early stop
 
     def prepare_opt_env(self):
         self.params = defaultdict(list)
@@ -390,17 +390,17 @@ class OptimizationLayer:
     
     def _update_best_trial(self, eval_result: EvaluationResult):
         with self._study_lock:
-            mscore, mcost = self.get_eval_feedback(eval_result)
+            current_score, current_cost = self.get_eval_feedback(eval_result)
             if not self._should_stop and self._patience_budget is not None:
                 impv = False
-                score_threshold = self.top_down_info.opt_config.patience[0]
-                cost_threshold = self.top_down_info.opt_config.patience[1]
+                score_threshold = self.top_down_info.opt_config._early_stop_quality_delta
+                cost_threshold = self.top_down_info.opt_config._early_stop_cost_delta
                 # reset if score or cost is improved
-                if mscore is not None and mscore >= score_threshold * (1 + score_threshold):
-                    self._patience_budget = self.top_down_info.opt_config.patience[2]
+                if current_score is not None and current_score >= score_threshold * (1 + score_threshold):
+                    self._patience_budget = self.top_down_info.opt_config._early_stop_n_iteration
                     impv = True
-                if mcost is not None and mcost <= cost_threshold * (1 - cost_threshold):
-                    self._patience_budget = self.top_down_info.opt_config.patience[2]
+                if current_cost is not None and current_cost <= cost_threshold * (1 - cost_threshold):
+                    self._patience_budget = self.top_down_info.opt_config._early_stop_n_iteration
                     impv = True
                 if not impv:
                     self._patience_budget -= 1
@@ -408,12 +408,12 @@ class OptimizationLayer:
                     if self._patience_budget <= 0:
                         self._should_stop = True
                     
-            if mscore is not None and mcost is not None:
+            if current_score is not None and current_cost is not None:
                 self._best_score = (
-                    mscore if self._best_score is None else max(self._best_score, mscore)
+                    current_score if self._best_score is None else max(self._best_score, current_score)
                 )
                 self._lowest_cost = (
-                    mcost if self._lowest_cost is None else min(self._lowest_cost, mcost)
+                    current_cost if self._lowest_cost is None else min(self._lowest_cost, current_cost)
                 )
                 
     def update(
