@@ -405,15 +405,9 @@ class OptimizationLayer:
         self.opt_logs[log_id].exec_time = exec_time
 
         self.opt_logs[log_id].eval_cost = eval_result.total_eval_cost
-        try:
-            logger.debug(
-                f"- {self.name} - Trial {trial.number} result: score= {score:.2f}, cost@1000= ${price*1000:.3f}, exec_time= {exec_time:.2f}s"
-            )
-        except:
-            print(eval_result.exec_times)
-            print(sum(eval_result.exec_times) / len(eval_result.exec_times))
-            print(eval_result.reduced_exec_time)
-            raise
+        logger.debug(
+            f"- {self.name} - Trial {trial.number} result: score= {score:.2f}, cost@1000= ${price*1000:.3f}, exec_time= {exec_time:.2f}s"
+        )
         self.opt_cost += eval_result.total_eval_cost
 
         # update study if any dynamic params can evolve
