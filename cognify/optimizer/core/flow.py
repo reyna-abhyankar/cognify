@@ -151,6 +151,11 @@ class OptConfig:
     frugal_eval_cost: bool = field(default=True)
     use_SH_allocation: bool = field(default=False)
     patience: tuple[float,float,int] = field(default=(0.01,0.01,5))
+    
+    def __post_init__(self):
+        quality_delta, cost_delta, n_iteration = self.patience
+        if quality_delta < 0 or cost_delta < 0 or n_iteration < 0:
+            raise ValueError("patience values should be non-negative")
 
     def finalize(self):
         if not os.path.exists(self.log_dir):
