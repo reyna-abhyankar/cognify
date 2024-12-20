@@ -394,6 +394,17 @@ class OptimizationLayer:
     def _update_best_trial(self, eval_result: EvaluationResult):
         with self._study_lock:
             current_score, current_cost, current_exec_time = self.get_eval_feedback(eval_result)
+            if current_score is not None and current_cost is not None and current_exec_time is not None:
+                self._best_score = (
+                    current_score if self._best_score is None else max(self._best_score, current_score)
+                )
+                self._lowest_cost = (
+                    current_cost if self._lowest_cost is None else min(self._lowest_cost, current_cost)
+                )
+                self._lowest_exec_time = (
+                    current_exec_time if self._lowest_exec_time is None else min(self._lowest_exec_time, current_exec_time)
+                )
+                
             if not self._should_stop and self.top_down_info.opt_config.patience is not None and self._patience_budget is not None:
                 impv = False
                 score_threshold = self.top_down_info.opt_config.patience.quality_min_delta
@@ -411,16 +422,7 @@ class OptimizationLayer:
                     if self._patience_budget <= 0:
                         self._should_stop = True
                     
-            if current_score is not None and current_cost is not None and current_exec_time is not None:
-                self._best_score = (
-                    current_score if self._best_score is None else max(self._best_score, current_score)
-                )
-                self._lowest_cost = (
-                    current_cost if self._lowest_cost is None else min(self._lowest_cost, current_cost)
-                )
-                self._lowest_exec_time = (
-                    current_exec_time if self._lowest_exec_time is None else min(self._lowest_exec_time, current_exec_time)
-                )
+            
                 
     def update(
         self,
@@ -557,6 +559,9 @@ class OptimizationLayer:
 
     def _gen_opt_bar_desc(self, score, cost, exec_time, total_opt_cost):
         indent = "---" * self.hierarchy_level + ">"
+        score = score or 0.0
+        cost = cost or 0.0
+        exec_time = exec_time or 0.0
         if self.top_down_info.trace_back:
             opt_trace = " | ".join(self.top_down_info.trace_back)
             return f"{indent} {self.name} in {opt_trace} | (best score: {score:.2f}, lowest cost@1000: ${cost*1000:.2f}), lowest exec time: {exec_time:.2f}s | Total Optimization Cost: ${total_opt_cost:.2f}"
@@ -911,7 +916,6 @@ class BottomLevelOptimization(OptimizationLayer):
 
     def get_eval_feedback(self, eval_result: EvaluationResult):
         avg_score = eval_result.reduced_score
-        print(f"Quality constraint: {self.quality_constraint}")
         if self.quality_constraint is None or avg_score >= self.quality_constraint:
             return avg_score, eval_result.reduced_price, eval_result.reduced_exec_time
         return None, None, None
