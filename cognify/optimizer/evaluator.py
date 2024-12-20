@@ -31,6 +31,24 @@ def default_reducer(xs):
 # {module_name: demo}
 TDemoInTrial = dict[str, Demonstration]
 
+@dataclass
+class EvalTaskResult:
+    task_index: int
+    score: float
+    price: float
+    exec_time: float
+    lm_to_demo: dict
+    finished: bool 
+
+def get_unfinished_eval_task_result(task_index: int) -> EvalTaskResult:
+    return EvalTaskResult(
+        task_index,
+        score=0.0, 
+        price=0.0, 
+        exec_time=0.0, 
+        lm_to_demo={}, 
+        finished=False
+    )
 
 class EvaluationResult:
     def __init__(
@@ -308,8 +326,8 @@ class EvalTask:
             start_time = time.time()
             end_time = time.time()
             score = 0.0
-            result = None   # this value is unused in `get_score`, so we can set this to `None` -- should refactor this
             price = 0.0
+            exec_time = 0.0
             lm_to_demo = {}
 
             try:
@@ -331,21 +349,21 @@ class EvalTask:
                     if demo is not None:
                         lm_to_demo[lm.name] = demo
 
+                exec_time = end_time - start_time
                 q.put(
-                    (
+                    EvalTaskResult(
                         task_index,
-                        True,
-                        result, # this value is unused in `get_score`
-                        score,
-                        price,
-                        lm_to_demo,
-                        end_time - start_time,
+                        score, 
+                        price, 
+                        exec_time, 
+                        lm_to_demo, 
+                        finished=True
                     )
                 )
         except KeyboardInterrupt:
-            q.put((task_index, False, None, 0.0, 0.0, None, 0.0))
+            q.put(get_unfinished_eval_task_result(task_index))
         except Exception as e:
-            q.put((task_index, False, None, 0.0, 0.0, None, 0.0))
+            q.put(get_unfinished_eval_task_result(task_index))
             raise
         finally:
             sema.release()
@@ -489,13 +507,12 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         total_score, total_cost, total_exec_time, n_success = 0.0, 0.0, 0.0, 0
         opt_trace = ".".join(task.trace_back)
 
-        def update_pbar(pbar, eval_result):
+        def update_pbar(pbar, eval_task_result: EvalTaskResult):
             nonlocal total_score, total_cost, total_exec_time, n_success
             n_success += 1
-            score, price, exec_time = eval_result[3], eval_result[4], eval_result[6]   # using these indices is dangerous
-            total_score += score
-            total_cost += price
-            total_exec_time += exec_time
+            total_score += eval_task_result.score
+            total_cost += eval_task_result.price
+            total_exec_time += eval_task_result.exec_time
             pbar.update(1)
             pbar.set_description(
                 _gen_pbar_desc(
@@ -521,13 +538,13 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
 
                 # check for result updates
                 while not result_q.empty():
-                    eval_result = result_q.get()
+                    eval_task_result: EvalTaskResult = result_q.get()
                     n_visited += 1
-                    if not eval_result[1]:
+                    if not eval_task_result.finished:
                         continue
-                    results.append(eval_result)
+                    results.append(eval_task_result)
                     if show_process:
-                        update_pbar(pbar, eval_result)
+                        update_pbar(pbar, eval_task_result)
 
                 input, label = data[pair_idx]
                 sema.acquire()
@@ -539,12 +556,12 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
                 all_workers.append(worker)
 
             for i in range(len(all_workers) - n_visited):
-                eval_result = result_q.get()
-                if not eval_result[1]:
+                eval_task_result: EvalTaskResult = result_q.get()
+                if not eval_task_result.finished:
                     continue
-                results.append(eval_result)
+                results.append(eval_task_result)
                 if show_process:
-                    update_pbar(pbar, eval_result)
+                    update_pbar(pbar, eval_task_result)
 
         for worker in all_workers:
             worker.join()
@@ -560,20 +577,22 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             )
 
         # re-order the results according to the task index
-        results = sorted(results, key=lambda x: x[0])
+        results = sorted(results, key=lambda x: x.task_index)
 
         data_ids = []
         prices = []
         scores = []
         demos = []
         exec_times = []
-        for tid, finished, result, score, price, demo, exec_time in results:
-            assert finished, "Only finished tasks should be collected"
-            data_ids.append(indices[tid])
-            prices.append(price)
-            scores.append(score)
-            demos.append(demo)
-            exec_times.append(exec_time)
+
+        for eval_task_result in results:
+            assert eval_task_result.finished, "Only finished tasks should be collected"
+            data_ids.append(indices[eval_task_result.task_index])
+            prices.append(eval_task_result.price)
+            scores.append(eval_task_result.score)
+            exec_times.append(eval_task_result.exec_time)
+            demos.append(eval_task_result.lm_to_demo)
+
         reduced_score = self.score_reducer(scores)
         reduced_price = self.price_reducer(prices)
         reduced_exec_time = self.exec_time_reducer(exec_times)
