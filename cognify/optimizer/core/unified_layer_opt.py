@@ -396,10 +396,10 @@ class OptimizationLayer:
                 score_threshold = self.top_down_info.opt_config._early_stop_quality_delta
                 cost_threshold = self.top_down_info.opt_config._early_stop_cost_delta
                 # reset if score or cost is improved
-                if current_score is not None and current_score >= score_threshold * (1 + score_threshold):
+                if current_score is not None and current_score >= self._best_score * (1 + score_threshold):
                     self._patience_budget = self.top_down_info.opt_config._early_stop_n_iteration
                     impv = True
-                if current_cost is not None and current_cost <= cost_threshold * (1 - cost_threshold):
+                if current_cost is not None and current_cost <= self._lowest_cost * (1 - cost_threshold):
                     self._patience_budget = self.top_down_info.opt_config._early_stop_n_iteration
                     impv = True
                 if not impv:
