@@ -745,7 +745,8 @@ class OptimizationLayer:
         # prepare optimization environment
         current_tdi.initialize()
         self.top_down_info = current_tdi
-        self._patience_budget = current_tdi.opt_config.patience.n_iterations or None
+        if current_tdi.opt_config.patience is not None:
+            self._patience_budget = current_tdi.opt_config.patience.n_iterations
         self.prepare_opt_env()
 
         # load previous optimization logs if exists
@@ -910,6 +911,7 @@ class BottomLevelOptimization(OptimizationLayer):
 
     def get_eval_feedback(self, eval_result: EvaluationResult):
         avg_score = eval_result.reduced_score
+        print(f"Quality constraint: {self.quality_constraint}")
         if self.quality_constraint is None or avg_score >= self.quality_constraint:
             return avg_score, eval_result.reduced_price, eval_result.reduced_exec_time
         return None, None, None
