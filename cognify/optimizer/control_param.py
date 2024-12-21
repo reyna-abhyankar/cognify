@@ -1,17 +1,61 @@
-from dataclasses import dataclass 
+import dataclasses
 import os
 import json
 import importlib
+from typing import Optional
 
 from cognify.optimizer.core.flow import LayerConfig
 
-@dataclass
+@dataclasses.dataclass(frozen=True)
 class SelectedObjectives:
     quality: bool = False
     cost: bool = False
     latency: bool = False
 
-@dataclass
+    def __post_init__(self):
+        if not any([self.quality, self.cost, self.latency]):
+            raise ValueError(
+                "At least one of the objectives should be selected: 'quality', 'cost', 'latency'"
+            )
+        
+    def get_optimization_directions(self):
+        directions = []
+        if self.quality:
+            directions.append("maximize")
+        if self.cost:
+            directions.append("minimize")
+        if self.latency:
+            directions.append("minimize")
+        return directions
+
+    def select_from(self, score, price, exec_time):
+        optimization_targets = []
+        if self.quality:
+            optimization_targets.append(score)
+        if self.cost:
+            optimization_targets.append(price)
+        if self.latency:
+            optimization_targets.append(exec_time)
+        return optimization_targets
+
+    def to_dict(self):
+        return {
+            "quality": self.quality,
+            "cost": self.cost,
+            "latency": self.latency,
+        }
+
+    def __str__(self):
+        string_representation = ""
+        if self.quality:
+            string_representation += "quality "
+        if self.cost:
+            string_representation += "cost "
+        if self.latency:
+            string_representation += "latency "
+        return string_representation.replace(' ', ', ')[:-2] # remove trailing comma and space
+
+@dataclasses.dataclass
 class ControlParameter:
     opt_layer_configs: list[LayerConfig]
     objectives: SelectedObjectives

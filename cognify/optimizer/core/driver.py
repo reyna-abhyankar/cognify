@@ -15,6 +15,7 @@ from cognify.optimizer.core.unified_layer_opt import (
     BottomLevelOptimization,
     BottomLevelTrialLog,
 )
+from cognify.optimizer.control_param import SelectedObjectives
 from cognify.optimizer.core.upper_layer import UpperLevelOptimization, LayerEvaluator
 from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv
 
@@ -25,6 +26,7 @@ class MultiLayerOptimizationDriver:
         self,
         layer_configs: list[LayerConfig],
         opt_log_dir: str,
+        objectives: SelectedObjectives,
         quality_constraint: float = None,
         base_quality: float = None,
         base_cost: float = None,
@@ -38,6 +40,7 @@ class MultiLayerOptimizationDriver:
         NOTE: the order of the layers is from top to bottom, i.e., the last layer will run program evaluation directly while others will run layer evaluation
         """
         self.layer_configs = layer_configs
+        self.objectives = objectives
         self.quality_constraint = quality_constraint
         self.base_quality = base_quality
         self.base_cost = base_cost
@@ -62,6 +65,7 @@ class MultiLayerOptimizationDriver:
                 opt_layer = BottomLevelOptimization(
                     name=layer_config.layer_name,
                     evaluator=evaluator,
+                    objectives=self.objectives,
                     dedicate_params=layer_config.dedicate_params,
                     universal_params=layer_config.universal_params,
                     target_modules=layer_config.target_modules,
@@ -79,6 +83,7 @@ class MultiLayerOptimizationDriver:
                 opt_layer = UpperLevelOptimization(
                     name=layer_config.layer_name,
                     evaluator=layer_evaluator,
+                    objectives=self.objectives,
                     dedicate_params=layer_config.dedicate_params,
                     universal_params=layer_config.universal_params,
                     target_modules=layer_config.target_modules,
@@ -173,6 +178,7 @@ class MultiLayerOptimizationDriver:
             opt_log_path=config_path,
             base_quality=self.base_quality,
             base_cost=self.base_cost,
+            base_exec_time=self.base_exec_time,
         )
         return result
 
@@ -225,6 +231,7 @@ class MultiLayerOptimizationDriver:
             dump_path = os.path.join(param_log_dir, f"Pareto_{i+1}.cog")
             trans = trial_log.show_transformation()
             details = f"Trial - {trial_log.id}\n"
+            details += f"Optimized for {str(self.objectives)}\n"
             details += f"Log at: {opt_path}\n"
             if self.base_quality is not None:
                 details += ("  Quality improves by {:.0f}%\n".format(_report_quality_impv(trial_log.score, self.base_quality)))

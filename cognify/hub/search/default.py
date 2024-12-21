@@ -99,6 +99,7 @@ def create_medium_search(search_params: SearchParams) -> ControlParameter:
     # ================= Overall Control Parameter =================
     optimize_control_param = ControlParameter(
         opt_layer_configs=[outer_loop_config, inner_loop_config],
+        objectives=search_params.objectives,
         opt_history_log_dir=search_params.opt_log_dir,
         evaluator_batch_size=search_params.evaluator_batch_size,
         quality_constraint=search_params.quality_constraint,
@@ -159,6 +160,7 @@ def create_heavy_search(search_params: SearchParams) -> ControlParameter:
     # ================= Overall Control Parameter =================
     optimize_control_param = ControlParameter(
         opt_layer_configs=[outer_loop_config, inner_loop_config],
+        objectives=search_params.objectives,
         opt_history_log_dir=search_params.opt_log_dir,
         evaluator_batch_size=search_params.evaluator_batch_size,
         quality_constraint=search_params.quality_constraint,
@@ -167,18 +169,24 @@ def create_heavy_search(search_params: SearchParams) -> ControlParameter:
 
 
 def parse_objectives(objectives: list[Literal["quality", "cost", "latency"]]) -> SelectedObjectives:
-    selected_objectives = SelectedObjectives()
+    selected_quality = False
+    selected_cost = False
+    selected_latency = False
+
     for item in objectives:
+        if selected_quality and selected_cost and selected_latency:
+            break
+
         if item == "quality":
-            selected_objectives.quality = True
+            selected_quality = True
         elif item == "cost":
-            selected_objectives.cost = True
+            selected_cost = True
         elif item == "latency":
-            selected_objectives.latency = True
+            selected_latency = True
         else:
-            raise ValueError(f"Invalid objective {item}, options are 'quality', 'cost', 'latency'")
-        
-    return selected_objectives
+            raise ValueError(f"Invalid objective '{item}', options are 'quality', 'cost', 'latency'")
+
+    return SelectedObjectives(selected_quality, selected_cost, selected_latency)
 
 def create_search(
     *,

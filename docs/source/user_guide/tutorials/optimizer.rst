@@ -53,7 +53,7 @@ After defining your model selection, the easiest way to configure your Cognify o
 
     from cognify.hub.search import default
     search_settings = default.create_search(
-        model_selection_cog=model_configs # pass in the model we want to search over
+        model_selection_cog=model_configs # pass in the models we want to search over
     )
 
 The default configuration internally uses the following set of values (you do not need to define :code:`create_search` if you are using the default; the values are listed below for your reference):
@@ -66,6 +66,7 @@ The default configuration internally uses the following set of values (you do no
         model_selection_cog: model_selection.LMSelection | list[LMConfig] | None = None,
         n_trials: int = None,
         quality_constraint: float = 1.0,
+        objectives: list[Literal["quality", "cost", "latency"]] = ["quality", "cost", "latency"],
         evaluator_batch_size: int = 10,
         opt_log_dir: str = "opt_results",
     ):
@@ -86,6 +87,7 @@ Essential parameters:
 
 * :code:`model_selection_cog (list[LMConfig])`: Specify the models that Cognify can explore with :code:`LMConfig` objects. For example, the :code:`search_settings` object specifies :code:`model_configs` as the model set in the above :code:`default` code block.
 If this parameter is not specified, Cognify will not explore multiple models and will simply use the models defined in your original workflow. Specifying this parameter will override the models in the original workflow.
+* :code:`objectives (list[str])`: A list of objectives that Cognify will optimize for. The default is :code:`["quality", "cost", "latency"]`. You can remove any of these objectives if you do not want Cognify to optimize for them. For example, if you only want to optimize for quality and cost, you can set :code:`objectives=["quality", "cost"]`.
 * :code:`opt_log_dir (str)`: The directory (under the workflow directory) where the optimization results will be stored. The default directory is named "opt_results". From :code:`opt_log_dir`, you can inspect the optimized workflow, use it in your code, or resume your optimization with more iterations (trials).
 
 Parameters to determine the amount of exploration:
