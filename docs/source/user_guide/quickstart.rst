@@ -256,12 +256,12 @@ An example output looks like this:
    Number of Optimization Results: 2
    --------------------------------------------------------
    Optimization_1
-   Quality improves by 5%
+   Quality improvement: 5%
    Cost is 0.95x original
    Quality: 0.160, Cost per 1K invocation: $0.28
    --------------------------------------------------------
    Optimization_2
-   Quality improves by 7%
+   Quality improvement: 7%
    Cost is 0.98x original
    Quality: 0.154, Cost per 1K invocation: $0.09
    ========================================================
@@ -346,7 +346,7 @@ The sample output looks like:
 
    > Evaluation in light_opt_layer_4 | (avg score: 0.20, avg cost@1000: 0.28 $): 100%|███████10/10 [00:07<00:00,  1.42it/s]
    =========== Evaluation Results ===========
-   Quality improves by 25%
+   Quality improvement: 25%
    Cost is 0.95x original
    Quality: 0.199, Cost per 1K invocation: $0.28
    ===========================================

@@ -39,22 +39,22 @@ Below is a sample output we got when running it. Note that because of the non-de
     Number of Optimization Results: 4
     --------------------------------------------------------
     Optimization_1
-      Quality improves by 5%
+      Quality improvement: 5%
       Cost is 1.06x original
       Quality: 6.47, Cost per 1K invocation: $7.90
     --------------------------------------------------------
     Optimization_2
-      Quality improves by 6%
+      Quality improvement: 6%
       Cost is 1.52x original
       Quality: 6.53, Cost per 1K invocation: $11.39
     --------------------------------------------------------
     Optimization_3
-      Quality improves by 3%
+      Quality improvement: 3%
       Cost is 0.11x original
       Quality: 6.37, Cost per 1K invocation: $0.80
     --------------------------------------------------------
     Optimization_4
-      Quality improves by 4%
+      Quality improvement: 4%
       Cost is 1.05x original
       Quality: 6.43, Cost per 1K invocation: $7.82
     ========================================================
@@ -207,7 +207,7 @@ You can evaluate the optimized workflow on the test data with:
       Params: {'solver_agent_few_shot': 'solver_agent_demos_c4d0a1fc-c664-40ec-a7c2-879ede9a241a', 'solver_agent_reasoning': 'NoChange', 'solver_agent_model_selection': 'None_gpt-4o-mini', 'interpreter_agent_few_shot': 'interpreter_agent_demos_6acf03ae-763f-4357-bba2-0aea69b9f38d', 'interpreter_agent_reasoning': 'ZeroShotCoT', 'interpreter_agent_model_selection': 'None_gpt-4o-mini'}
 
     =========== Evaluation Results ===========
-      Quality improves by 2%
+      Quality improvement: 2%
       Cost is 0.11x original
       Quality: 6.31, Cost per 1K invocation: $0.80
     ===========================================

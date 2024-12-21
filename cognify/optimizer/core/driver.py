@@ -223,7 +223,7 @@ class MultiLayerOptimizationDriver:
             details = f"Trial - {trial_log.id}\n"
             details += f"Log at: {opt_path}\n"
             if self.base_quality is not None:
-                details += ("  Quality improves by {:.0f}%\n".format(_report_quality_impv(trial_log.score, self.base_quality)))
+                details += ("  Quality improvement: {:.0f}%\n".format(_report_quality_impv(trial_log.score, self.base_quality)))
             if self.base_cost is not None:
                 details += ("  Cost is {:.2f}x original".format(_report_cost_reduction(trial_log.price, self.base_cost)))
             details += f"Quality: {trial_log.score:.3f}, Cost per 1K invocation: $ {trial_log.price * 1000:.2f}\n"
