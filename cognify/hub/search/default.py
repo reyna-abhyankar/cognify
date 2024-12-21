@@ -6,13 +6,13 @@ from cognify.hub.cogs import reasoning, ensemble, model_selection
 from cognify.hub.cogs.common import NoChange
 from cognify.hub.cogs.fewshot import LMFewShot
 from cognify.hub.cogs.reasoning import ZeroShotCoT, PlanBefore
-from cognify.optimizer.control_param import ControlParameter
+from cognify.optimizer.control_param import ControlParameter, SelectedObjectives
 from dataclasses import dataclass
-
 
 @dataclass
 class SearchParams:
     n_trials: int
+    objectives: SelectedObjectives
     quality_constraint: float = 1.0
     evaluator_batch_size: int = 10
     opt_log_dir: str = "opt_results"
@@ -42,6 +42,7 @@ def create_light_search(search_params: SearchParams) -> ControlParameter:
     # ================= Overall Control Parameter =================
     optimize_control_param = ControlParameter(
         opt_layer_configs=[inner_loop_config],
+        objectives=search_params.objectives,
         opt_history_log_dir=search_params.opt_log_dir,
         evaluator_batch_size=search_params.evaluator_batch_size,
         quality_constraint=search_params.quality_constraint,
@@ -165,12 +166,27 @@ def create_heavy_search(search_params: SearchParams) -> ControlParameter:
     return optimize_control_param
 
 
+def parse_objectives(objectives: list[Literal["quality", "cost", "latency"]]) -> SelectedObjectives:
+    selected_objectives = SelectedObjectives()
+    for item in objectives:
+        if item == "quality":
+            selected_objectives.quality = True
+        elif item == "cost":
+            selected_objectives.cost = True
+        elif item == "latency":
+            selected_objectives.latency = True
+        else:
+            raise ValueError(f"Invalid objective {item}, options are 'quality', 'cost', 'latency'")
+        
+    return selected_objectives
+
 def create_search(
     *,
     search_type: Literal["light", "medium", "heavy"] = "light",
     model_selection_cog: model_selection.LMSelection | list[LMConfig] | None = None,
     n_trials: int = None,
     quality_constraint: float = 1.0,
+    objectives: list[Literal["quality", "cost", "latency"]] = ["quality", "cost", "latency"],
     evaluator_batch_size: int = 10,
     opt_log_dir: str = "opt_results",
 ):
@@ -195,8 +211,11 @@ def create_search(
         else:
             raise ValueError(f"Invalid search type: {search_type}")
 
+    selected_objectives = parse_objectives(objectives)
+
     search_params = SearchParams(
         n_trials,
+        selected_objectives,
         quality_constraint,
         evaluator_batch_size,
         opt_log_dir,

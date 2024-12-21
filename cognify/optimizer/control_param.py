@@ -1,13 +1,20 @@
-import dataclasses
+from dataclasses import dataclass 
 import os
 import json
 import importlib
 
 from cognify.optimizer.core.flow import LayerConfig
 
-@dataclasses.dataclass
+@dataclass
+class SelectedObjectives:
+    quality: bool = False
+    cost: bool = False
+    latency: bool = False
+
+@dataclass
 class ControlParameter:
     opt_layer_configs: list[LayerConfig]
+    objectives: SelectedObjectives
     opt_history_log_dir: str = "opt_results"
     quality_constraint: float = 1.0
     train_down_sample: int = 0
