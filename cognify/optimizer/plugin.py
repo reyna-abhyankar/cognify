@@ -57,7 +57,8 @@ def capture_module_from_fs(module_path: str):
         current_directory = os.path.dirname(module.__file__)
         for k,v in sys.modules.items():
             if hasattr(v, '__file__') and v.__file__ and v.__file__.startswith(current_directory):
-                to_reload.append(v)
+                if v.__name__ != '__main__':
+                    to_reload.append(v)
     
         for mod in to_reload:
             importlib.reload(mod)
