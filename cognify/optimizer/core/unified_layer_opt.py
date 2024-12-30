@@ -677,15 +677,18 @@ class OptimizationLayer:
         pareto_frontier = self.get_pareto_front(candidates=candidates)
         if self.hierarchy_level == 0:
             print(f"================ Optimization Results =================") 
-            print(f"Num Pareto Frontier: {len(pareto_frontier)}")
+            print(f"Number of Optimized Workflows Generated: {len(pareto_frontier)}")
+	    if len(pareto_frontier) == 0:
+		print("Based on current optimization parameters, the best solution is the original workflow.")
+		print("We recommend increasing the number of trials or relaxing constraints.") 
             for i, (trial_log, log_path) in enumerate(pareto_frontier):
                 print("--------------------------------------------------------")
-                print("Pareto_{}".format(i + 1))
+                print("Optimization_{}".format(i + 1))
                 # logger.info("  Params: {}".format(trial_log.params))
                 if self.base_quality is not None:
-                    print("  Quality improves by {:.0f}%".format(_report_quality_impv(trial_log.score, self.base_quality)))
+		    print("  Quality improvement: {:.0f}%".format(_report_quality_impv(trial_log.score, self.base_quality)))
                 if self.base_cost is not None:
-                    print("  Cost is {:.2f}x original".format(_report_cost_reduction(trial_log.price, self.base_cost)))
+		    print("  Cost: {:.2f}x original".format(_report_cost_reduction(trial_log.price, self.base_cost)))
                 print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}".format(trial_log.score, trial_log.price * 1000))
                 # print("  Applied at: {}".format(trial_log.id))
                 # logger.info("  config saved at: {}".format(log_path))
@@ -987,7 +990,7 @@ class BottomLevelOptimization(OptimizationLayer):
         
         print(f"=========== Evaluation Results ===========") 
         if base_quality is not None:
-            print("  Quality improves by {:.0f}%".format(_report_quality_impv(trial_log.score, base_quality)))
+            print("  Quality improvement: {:.0f}%".format(_report_quality_impv(trial_log.score, base_quality)))
         if base_cost is not None:
             print("  Cost is {:.2f}x original".format(_report_cost_reduction(trial_log.price, base_cost)))
         print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}".format(eval_result.reduced_score, eval_result.reduced_price * 1000))
