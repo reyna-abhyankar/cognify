@@ -16,7 +16,8 @@ from cognify.optimizer.core.unified_layer_opt import (
     BottomLevelTrialLog,
 )
 from cognify.optimizer.core.upper_layer import UpperLevelOptimization, LayerEvaluator
-from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv
+from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv, _report_latency_reduction
+from cognify._tracing import trace_quality_improvement, trace_cost_improvement, trace_latency_improvement
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ class MultiLayerOptimizationDriver:
         return opt_cost, frontier, all_opt_logs
 
     def _extract_trial_id(self, config_id: str) -> str:
-        param_log_dir = os.path.join(self.opt_log_dir, "pareto_frontier_details")
+        param_log_dir = os.path.join(self.opt_log_dir, "optimized_workflow_details")
         if not os.path.exists(param_log_dir):
             raise ValueError(
                 f"Cannot find the optimization log directory at {param_log_dir}"
@@ -217,22 +218,29 @@ class MultiLayerOptimizationDriver:
         return
 
     def dump_frontier_details(self, frontier):
-        param_log_dir = os.path.join(self.opt_log_dir, "pareto_frontier_details")
+        param_log_dir = os.path.join(self.opt_log_dir, "optimized_workflow_details")
         if not os.path.exists(param_log_dir):
             os.makedirs(param_log_dir, exist_ok=True)
         for i, (trial_log, opt_path) in enumerate(frontier):
             trial_log: BottomLevelTrialLog
-            dump_path = os.path.join(param_log_dir, f"Pareto_{i+1}.cog")
+            dump_path = os.path.join(param_log_dir, f"Optimization_{i+1}.cog")
             trans = trial_log.show_transformation()
             details = f"Trial - {trial_log.id}\n"
             details += f"Log at: {opt_path}\n"
             if self.base_quality is not None:
-                details += ("  Quality improves by {:.0f}%\n".format(_report_quality_impv(trial_log.score, self.base_quality)))
+                quality_improvement = _report_quality_impv(trial_log.score, self.base_quality)
+                details += ("  Quality improves by {:.0f}%\n".format(quality_improvement))
+                trace_quality_improvement(quality_improvement)
             if self.base_cost is not None:
-                details += ("  Cost is {:.2f}x original".format(_report_cost_reduction(trial_log.price, self.base_cost)))
+                cost_improvement = _report_cost_reduction(trial_log.price, self.base_cost)
+                details += ("  Cost is {:.2f}x original".format(cost_improvement))
+                trace_cost_improvement(cost_improvement)
             if self.base_exec_time is not None:
-                details += ("  Execution time is {:.2f}x original".format(_report_cost_reduction(trial_log.exec_time, self.base_exec_time)))
+                exec_time_improvement = _report_latency_reduction(trial_log.exec_time, self.base_exec_time)
+                details += ("  Execution time is {:.2f}x original".format(exec_time_improvement))
+                trace_latency_improvement(exec_time_improvement)
             details += f"Quality: {trial_log.score:.3f}, Cost per 1K invocation: ${trial_log.price * 1000:.2f}, Execution time: {trial_log.exec_time:.2f}s \n"
             details += trans
             with open(dump_path, "w") as f:
                 f.write(details)
+
