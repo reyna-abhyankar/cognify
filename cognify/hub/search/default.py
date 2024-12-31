@@ -232,7 +232,7 @@ def create_search(
         model_selection_cog,
     )
 
-    trace_default_search(search_type, quality_constraint)
+    trace_default_search(search_type, quality_constraint, list(set(objectives)))
 
     if search_type == "light":
         return create_light_search(search_params)

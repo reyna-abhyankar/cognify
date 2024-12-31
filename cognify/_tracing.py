@@ -94,12 +94,13 @@ def trace_cli_args(args):
         except:
             pass
 
-def trace_default_search(search_type, quality_constraint):
+def trace_default_search(search_type, quality_constraint, objectives):
     if is_telemetry_on():
         try:
             with tracer.start_as_current_span("default_search") as span:
                 span.set_attribute("search_type", search_type)
                 span.set_attribute("quality_constraint", quality_constraint)
+                span.set_attribute("objectives", objectives)
         except:
             pass
 
