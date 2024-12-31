@@ -31,6 +31,7 @@ Thank you for using Cognify-{version}! 🚀 To better understand how Cognify is 
         - light, medium or heavy search (or an application-specific search)
         - number of trials
         - quality constraint
+        - optimization objectives
     - The relative quality/cost/latency improvement from a base workflow. Note that this is just the percentage improvement, not the absolute quality/cost/latency.
     - A consistent, anonymized user identifier based on your hostname and IP address for GDPR-related compliance (i.e. data deletion).
 We do not record your workflow or your dataset. If you would like to opt-out, simply add COGNIFY_TELEMETRY=false to your environment variables.
