@@ -153,10 +153,18 @@ def trace_quality_improvement(quality_improvement: float):
         except:
             pass
 
-def trace_cost_improvement(quality_improvement: float):
+def trace_cost_improvement(cost_improvement: float):
     if is_telemetry_on():
         try:
             with tracer.start_as_current_span("dump_frontier_cost") as span:
-                span.set_attribute("quality_improvement", quality_improvement)
+                span.set_attribute("cost_improvement", cost_improvement)
+        except:
+            pass
+
+def trace_latency_improvement(exec_time_improvement: float):
+    if is_telemetry_on():
+        try:
+            with tracer.start_as_current_span("dump_frontier_exec_time") as span:
+                span.set_attribute("exec_time_improvement", exec_time_improvement)
         except:
             pass
