@@ -163,6 +163,7 @@ def optimize(
     # build optimizer from parameters
     opt_driver = driver.MultiLayerOptimizationDriver(
         layer_configs=control_param.opt_layer_configs,
+        objectives=control_param.objectives,
         opt_log_dir=control_param.opt_history_log_dir,
         quality_constraint=control_param.quality_constraint * raw_result.reduced_score,
         base_quality=raw_result.reduced_score,

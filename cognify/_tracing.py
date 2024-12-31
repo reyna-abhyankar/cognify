@@ -31,6 +31,7 @@ Thank you for using Cognify-{version}! 🚀 To better understand how Cognify is 
         - light, medium or heavy search (or an application-specific search)
         - number of trials
         - quality constraint
+        - optimization objectives
     - The relative quality/cost/latency improvement from a base workflow. Note that this is just the percentage improvement, not the absolute quality/cost/latency.
     - A consistent, anonymized user identifier based on your hostname and IP address for GDPR-related compliance (i.e. data deletion).
 We do not record your workflow or your dataset. If you would like to opt-out, simply add COGNIFY_TELEMETRY=false to your environment variables.
@@ -94,12 +95,13 @@ def trace_cli_args(args):
         except:
             pass
 
-def trace_default_search(search_type, quality_constraint):
+def trace_default_search(search_type, quality_constraint, objectives):
     if is_telemetry_on():
         try:
             with tracer.start_as_current_span("default_search") as span:
                 span.set_attribute("search_type", search_type)
                 span.set_attribute("quality_constraint", quality_constraint)
+                span.set_attribute("objectives", objectives)
         except:
             pass
 

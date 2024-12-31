@@ -45,6 +45,7 @@ from cognify.optimizer.core.flow import (
     TopDownInformation,
     OptConfig,
 )
+from cognify.optimizer.control_param import SelectedObjectives
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,7 @@ class OptimizationLayer:
         self,
         name: str,
         evaluator: GeneralEvaluatorInterface,
+        objectives: SelectedObjectives,
         dedicate_params: list[CogBase] = [],
         universal_params: list[CogBase] = [],
         target_modules: Iterable[str] = None,
@@ -120,6 +122,7 @@ class OptimizationLayer:
         """
         self.name = name
         self.evaluator = evaluator
+        self.objectives = objectives
         self.dedicate_params = dedicate_params
         self.universal_params = universal_params
         if len(self.dedicate_params) + len(self.universal_params) == 0:
@@ -270,7 +273,7 @@ class OptimizationLayer:
             )
 
         new_study = optuna.create_study(
-            directions=["maximize", "minimize", "minimize"],
+            directions=self.objectives.get_optimization_directions(),
             sampler=sampler,
         )
 
@@ -450,7 +453,7 @@ class OptimizationLayer:
         # update study if any dynamic params can evolve
         with self._study_lock:
             self.add_constraint(score, trial)
-            frozen_trial = self.study.tell(trial, [score, price, exec_time])
+            frozen_trial = self.study.tell(trial, self.objectives.select_from(score, price, exec_time))
             is_evolved = False
             for params in self.params.values():
                 for param in params:
@@ -639,8 +642,7 @@ class OptimizationLayer:
         states_of_interest = (TrialState.COMPLETE,)
         return self.study.get_trials(deepcopy=need_copy, states=states_of_interest)
 
-    @staticmethod
-    def get_pareto_front(candidates: list[TrialLog, str]) -> list[tuple[TrialLog, str]]:
+    def get_pareto_front(self, candidates: list[TrialLog, str]) -> list[tuple[TrialLog, str]]:
         """Find the pareto-efficient points
 
         Each with their config log path. This is for upper level to show correct bottom level config since the path is generated randomly for each innerloop.
@@ -653,7 +655,7 @@ class OptimizationLayer:
         for trial_log, log_path in candidates:
             score_cost_time_list.append((trial_log.score, trial_log.price, trial_log.exec_time))
 
-        vectors = np.array([[-score, price, exec_time] for score, price, exec_time in score_cost_time_list])
+        vectors = np.array([self.objectives.select_from(-score, price, exec_time) for score, price, exec_time in score_cost_time_list])
         is_efficient = np.ones(vectors.shape[0], dtype=bool)
         for i, v in enumerate(vectors):
             if is_efficient[i]:
@@ -690,11 +692,13 @@ class OptimizationLayer:
         pareto_frontier = self.get_pareto_front(candidates=candidates)
         if self.hierarchy_level == 0:
             print(f"================ Optimization Results =================") 
-            print(f"Number of Optimized Workflows Generated: {len(pareto_frontier)}")
+            print(f"Optimized for: {str(self.objectives)}")
             
         if len(pareto_frontier) == 0:
             print("Based on current optimization parameters, the best solution is the original workflow.")
             print("We recommend increasing the number of trials or relaxing constraints.")
+        else:
+            print(f"Number of Optimized Workflows Generated: {len(pareto_frontier)}")
 
         for i, (trial_log, log_path) in enumerate(pareto_frontier):
             print("--------------------------------------------------------")
@@ -728,7 +732,7 @@ class OptimizationLayer:
             assert trial_log.finished, f"Trial {trial_log_id} is not finished"
             trial = optuna.trial.create_trial(
                 params=trial_log.params,
-                values=[trial_log.score, trial_log.price, trial_log.exec_time],
+                values=self.objectives.select_from(trial_log.score, trial_log.price, trial_log.exec_time),
                 distributions=self.param_categorical_dist,
             )
             if self.quality_constraint is not None:
@@ -824,6 +828,14 @@ class BottomLevelTrialLog(TrialLog):
     def show_transformation(self) -> str:
         eval_task = EvalTask.from_dict(self.eval_task)
         return eval_task.show_opt_trace()
+    
+    def compare_using_objective(self, other: "BottomLevelTrialLog", objectives: SelectedObjectives):
+        if objectives.quality:
+            return self.score > other.score
+        if objectives.cost:
+            return self.price < other.price
+        if objectives.latency:
+            return self.exec_time < other.exec_time
 
 
 class BottomLevelOptimization(OptimizationLayer):
@@ -841,12 +853,12 @@ class BottomLevelOptimization(OptimizationLayer):
         release_position(pbar_position)
         return eval_result
 
-    def best_score_config(self) -> BottomLevelTrialLog:
-        best_score_log: BottomLevelTrialLog = None
+    def get_best_trial_log(self) -> BottomLevelTrialLog:
+        best_trial_log: BottomLevelTrialLog = None
         for log in self.opt_logs.values():
-            if best_score_log is None or log.score > best_score_log.score:
-                best_score_log = log
-        return best_score_log
+            if best_trial_log is None or log.compare_using_objective(best_trial_log, self.objectives):
+                best_trial_log = log
+        return best_trial_log
 
     def update(
         self,
@@ -871,7 +883,7 @@ class BottomLevelOptimization(OptimizationLayer):
         # update study if any dynamic params can evolve
         with self._study_lock:
             self.add_constraint(score, trial)
-            frozen_trial = self.study.tell(trial, [score, price, exec_time])
+            frozen_trial = self.study.tell(trial, self.objectives.select_from(score, price, exec_time))
             existing_trials = self.get_finished_bo_trials(False)
             if (
                 len(existing_trials) > 0
@@ -885,9 +897,9 @@ class BottomLevelOptimization(OptimizationLayer):
                 if self.evaluator.dataset["eval"][0] is not None:
                     logger.debug("Use best score config to get evolving results")
                     # use best score config to get evolving results
-                    best_score_log = self.best_score_config()
+                    best_trial_log = self.get_best_trial_log()
                     evolve_eval_task = EvalTask.from_dict(
-                        copy.deepcopy(best_score_log.eval_task)
+                        copy.deepcopy(best_trial_log.eval_task)
                     )
                     pbar_position = ask_for_position()
                     evolve_result = self.evaluator.get_score(
