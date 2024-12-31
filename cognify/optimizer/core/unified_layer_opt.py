@@ -149,6 +149,8 @@ class OptimizationLayer:
         self.base_quality = base_quality
         self.base_cost = base_cost
         self.hierarchy_level = hierarchy_level
+        self._should_stop = False # flag to early stop when convergence
+        self._patience_budget = None # number of iterations to wait for improvement before early stop
 
     def prepare_opt_env(self):
         self.params = defaultdict(list)
@@ -385,7 +387,35 @@ class OptimizationLayer:
             trial.set_user_attr(qc_identifier, constraint_result)
             # NOTE: add system attr at loading time
             # trial.set_system_attr(_base._CONSTRAINTS_KEY, constraint_result)
-
+    
+    def _update_best_trial(self, eval_result: EvaluationResult):
+        with self._study_lock:
+            current_score, current_cost = self.get_eval_feedback(eval_result)
+            if not self._should_stop and self._patience_budget is not None:
+                impv = False
+                score_threshold = self.top_down_info.opt_config._early_stop_quality_delta
+                cost_threshold = self.top_down_info.opt_config._early_stop_cost_delta
+                # reset if score or cost is improved
+                if current_score is not None and current_score >= self._best_score * (1 + score_threshold):
+                    self._patience_budget = self.top_down_info.opt_config._early_stop_n_iteration
+                    impv = True
+                if current_cost is not None and current_cost <= self._lowest_cost * (1 - cost_threshold):
+                    self._patience_budget = self.top_down_info.opt_config._early_stop_n_iteration
+                    impv = True
+                if not impv:
+                    self._patience_budget -= 1
+                    # early stop if patience budget is used up
+                    if self._patience_budget <= 0:
+                        self._should_stop = True
+                    
+            if current_score is not None and current_cost is not None:
+                self._best_score = (
+                    current_score if self._best_score is None else max(self._best_score, current_score)
+                )
+                self._lowest_cost = (
+                    current_cost if self._lowest_cost is None else min(self._lowest_cost, current_cost)
+                )
+                
     def update(
         self,
         trial: optuna.trial.Trial,
@@ -405,6 +435,8 @@ class OptimizationLayer:
             f"- {self.name} - Trial {trial.number} result: score= {score:.2f}, cost@1000= {price*1000:.3f}"
         )
         self.opt_cost += eval_result.total_eval_cost
+        
+        self._update_best_trial(eval_result)       
 
         # update study if any dynamic params can evolve
         with self._study_lock:
@@ -529,18 +561,10 @@ class OptimizationLayer:
         num_current_trials = len(self.opt_logs)
         pbar_position = ask_for_position()
 
-        def _update_pbar(pbar, eval_result: EvaluationResult):
-            score, cost = self.get_eval_feedback(eval_result)
-            if score is not None and cost is not None:
-                self._best_score = (
-                    score if self._best_score is None else max(self._best_score, score)
-                )
-                self._lowest_cost = (
-                    cost if self._lowest_cost is None else min(self._lowest_cost, cost)
-                )
-                pbar.set_description(
-                    self._gen_opt_bar_desc(self._best_score, self._lowest_cost, self.opt_cost)
-                )
+        def _update_pbar(pbar):
+            pbar.set_description(
+                self._gen_opt_bar_desc(self._best_score, self._lowest_cost, self.opt_cost)
+            )
             pbar.update(1)
 
         initial_score = self._best_score if self._best_score is not None else 0.0
@@ -555,7 +579,7 @@ class OptimizationLayer:
             counter = 0
             if opt_config.throughput == 1:
                 for _ in range(opt_config.n_trials):
-                    if _should_exit():
+                    if _should_exit() or self._should_stop:
                         break
                     result = self._optimize_iteration(base_program)
                     if result is None or not result.complete:
@@ -568,7 +592,7 @@ class OptimizationLayer:
                         self.save_ckpt(
                             opt_config.opt_log_path, opt_config.param_save_path
                         )
-                    _update_pbar(pbar, result)
+                    _update_pbar(pbar)
             else:
                 with ThreadPoolExecutor(max_workers=opt_config.throughput) as executor:
                     futures = [
@@ -588,8 +612,8 @@ class OptimizationLayer:
                                         opt_config.opt_log_path,
                                         opt_config.param_save_path,
                                     )
-                                _update_pbar(pbar, result)
-                            if _should_exit():
+                                _update_pbar(pbar)
+                            if _should_exit() or self._should_stop:
                                 executor.shutdown(wait=False, cancel_futures=True)
                                 break
                         except Exception as e:
@@ -653,15 +677,18 @@ class OptimizationLayer:
         pareto_frontier = self.get_pareto_front(candidates=candidates)
         if self.hierarchy_level == 0:
             print(f"================ Optimization Results =================") 
-            print(f"Num Pareto Frontier: {len(pareto_frontier)}")
+            print(f"Number of Optimized Workflows Generated: {len(pareto_frontier)}")
+	    if len(pareto_frontier) == 0:
+		print("Based on current optimization parameters, the best solution is the original workflow.")
+		print("We recommend increasing the number of trials or relaxing constraints.") 
             for i, (trial_log, log_path) in enumerate(pareto_frontier):
                 print("--------------------------------------------------------")
-                print("Pareto_{}".format(i + 1))
+                print("Optimization_{}".format(i + 1))
                 # logger.info("  Params: {}".format(trial_log.params))
                 if self.base_quality is not None:
-                    print("  Quality improves by {:.0f}%".format(_report_quality_impv(trial_log.score, self.base_quality)))
+		    print("  Quality improvement: {:.0f}%".format(_report_quality_impv(trial_log.score, self.base_quality)))
                 if self.base_cost is not None:
-                    print("  Cost is {:.2f}x original".format(_report_cost_reduction(trial_log.price, self.base_cost)))
+		    print("  Cost: {:.2f}x original".format(_report_cost_reduction(trial_log.price, self.base_cost)))
                 print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}".format(trial_log.score, trial_log.price * 1000))
                 # print("  Applied at: {}".format(trial_log.id))
                 # logger.info("  config saved at: {}".format(log_path))
@@ -710,6 +737,8 @@ class OptimizationLayer:
         # prepare optimization environment
         current_tdi.initialize()
         self.top_down_info = current_tdi
+        if current_tdi.opt_config.patience[2] > 0:
+            self._patience_budget = current_tdi.opt_config.patience[2]
         self.prepare_opt_env()
 
         # load previous optimization logs if exists
@@ -817,7 +846,8 @@ class BottomLevelOptimization(OptimizationLayer):
             f"- {self.name} - Trial {trial.number} result: score= {score:.2f}, cost@1000= {price*1000:.3f}"
         )
         self.opt_cost += eval_result.total_eval_cost
-
+        
+        self._update_best_trial(eval_result)
         # update study if any dynamic params can evolve
         with self._study_lock:
             self.add_constraint(score, trial)
@@ -960,7 +990,7 @@ class BottomLevelOptimization(OptimizationLayer):
         
         print(f"=========== Evaluation Results ===========") 
         if base_quality is not None:
-            print("  Quality improves by {:.0f}%".format(_report_quality_impv(trial_log.score, base_quality)))
+            print("  Quality improvement: {:.0f}%".format(_report_quality_impv(trial_log.score, base_quality)))
         if base_cost is not None:
             print("  Cost is {:.2f}x original".format(_report_cost_reduction(trial_log.price, base_cost)))
         print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}".format(eval_result.reduced_score, eval_result.reduced_price * 1000))

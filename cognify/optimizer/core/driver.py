@@ -111,7 +111,7 @@ class MultiLayerOptimizationDriver:
         return opt_cost, frontier, all_opt_logs
 
     def _extract_trial_id(self, config_id: str) -> str:
-        param_log_dir = os.path.join(self.opt_log_dir, "pareto_frontier_details")
+        param_log_dir = os.path.join(self.opt_log_dir, "optimized_workflow_details")
         if not os.path.exists(param_log_dir):
             raise ValueError(
                 f"Cannot find the optimization log directory at {param_log_dir}"
@@ -214,12 +214,12 @@ class MultiLayerOptimizationDriver:
         return
 
     def dump_frontier_details(self, frontier):
-        param_log_dir = os.path.join(self.opt_log_dir, "pareto_frontier_details")
+        param_log_dir = os.path.join(self.opt_log_dir, "optimized_workflow_details")
         if not os.path.exists(param_log_dir):
             os.makedirs(param_log_dir, exist_ok=True)
         for i, (trial_log, opt_path) in enumerate(frontier):
             trial_log: BottomLevelTrialLog
-            dump_path = os.path.join(param_log_dir, f"Pareto_{i+1}.cog")
+            dump_path = os.path.join(param_log_dir, f"Optimization_{i+1}.cog")
             trans = trial_log.show_transformation()
             details = f"Trial - {trial_log.id}\n"
             details += f"Log at: {opt_path}\n"
@@ -231,7 +231,7 @@ class MultiLayerOptimizationDriver:
                 cost_improvement = _report_cost_reduction(trial_log.price, self.base_cost)
                 details += ("  Cost is {:.2f}x original".format(cost_improvement))
                 trace_cost_improvement(cost_improvement)
-            details += f"Quality: {trial_log.score:.3f}, Cost per 1K invocation ($): {trial_log.price * 1000:.2f} $\n"
+            details += f"Quality: {trial_log.score:.3f}, Cost per 1K invocation: ${trial_log.price * 1000:.2f}\n"
             details += trans
             with open(dump_path, "w") as f:
                 f.write(details)
