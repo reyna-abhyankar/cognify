@@ -118,6 +118,16 @@ class ModuleTransformTrace:
                 return False
         return True
 
+@dataclass
+class PatienceConfig:
+    quality_min_delta: float
+    cost_min_delta: float
+    exec_time_min_delta: float
+    n_iterations: int
+
+    def __post_init__(self):
+        if self.quality_min_delta < 0 or self.cost_min_delta < 0 or self.exec_time_min_delta < 0 or self.n_iterations < 0:
+            raise ValueError("patience values should be non-negative")
 
 @dataclass
 class OptConfig:
@@ -140,7 +150,7 @@ class OptConfig:
         
         use_SH_allocation (bool): whether to use Successive Halving strategy.
         
-        patience (tuple[float,float,int], optional): tuple of (quality_min_delta, cost_min_delta, n_iteration) to set the early stop threshold.
+        patience (Patience, optional): dataclass of (quality_min_delta, cost_min_delta, exec_time_min_delta, n_iteration) to set the early stop threshold.
     """
     n_trials: int
     throughput: int = field(default=2)
@@ -150,12 +160,7 @@ class OptConfig:
     param_save_path: str = field(default=None)
     frugal_eval_cost: bool = field(default=True)
     use_SH_allocation: bool = field(default=False)
-    patience: tuple[float,float,int] = field(default=(0.01,0.01,5))
-    
-    def __post_init__(self):
-        quality_delta, cost_delta, n_iteration = self.patience
-        if quality_delta < 0 or cost_delta < 0 or n_iteration < 0:
-            raise ValueError("patience values should be non-negative")
+    patience: Optional[PatienceConfig] = field(default=PatienceConfig(0.01,0.01,0.01,5))
 
     def finalize(self):
         if not os.path.exists(self.log_dir):
@@ -170,19 +175,6 @@ class OptConfig:
         for key, value in other.__dict__.items():
             if value is not None:
                 setattr(self, key, value)
-    
-    @property
-    def _early_stop_quality_delta(self):
-        return self.patience[0]
-    
-    @property
-    def _early_stop_cost_delta(self):
-        return self.patience[1]
-    
-    @property
-    def _early_stop_n_iteration(self):
-        return self.patience[2]
-
 
 @dataclass
 class TopDownInformation:
@@ -236,6 +228,7 @@ class TrialLog:
         id: str = None,
         score: float = 0.0,
         price: float = 0.0,
+        exec_time: float = 0.0,
         eval_cost: float = 0.0,
         finished: bool = False,
     ):
@@ -244,6 +237,7 @@ class TrialLog:
         self.bo_trial_id = bo_trial_id
         self.score = score
         self.price = price
+        self.exec_time = exec_time
         self.eval_cost = eval_cost
         self.finished = finished
 
@@ -254,6 +248,7 @@ class TrialLog:
             "params": self.params,
             "score": self.score,
             "price": self.price,
+            "exec_time": self.exec_time,
             "eval_cost": self.eval_cost,
             "finished": self.finished,
         }

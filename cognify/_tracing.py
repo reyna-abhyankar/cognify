@@ -31,7 +31,7 @@ Thank you for using Cognify-{version}! 🚀 To better understand how Cognify is 
         - light, medium or heavy search (or an application-specific search)
         - number of trials
         - quality constraint
-    - The relative quality/cost improvement from a base workflow. Note that this is just the percentage improvement, not the absolute quality or cost.
+    - The relative quality/cost/latency improvement from a base workflow. Note that this is just the percentage improvement, not the absolute quality/cost/latency.
     - A consistent, anonymized user identifier based on your hostname and IP address for GDPR-related compliance (i.e. data deletion).
 We do not record your workflow or your dataset. If you would like to opt-out, simply add COGNIFY_TELEMETRY=false to your environment variables.
 If in the future you would like to delete this data, you can contact us with the following user id:
@@ -153,10 +153,18 @@ def trace_quality_improvement(quality_improvement: float):
         except:
             pass
 
-def trace_cost_improvement(quality_improvement: float):
+def trace_cost_improvement(cost_improvement: float):
     if is_telemetry_on():
         try:
             with tracer.start_as_current_span("dump_frontier_cost") as span:
-                span.set_attribute("quality_improvement", quality_improvement)
+                span.set_attribute("cost_improvement", cost_improvement)
+        except:
+            pass
+
+def trace_latency_improvement(exec_time_improvement: float):
+    if is_telemetry_on():
+        try:
+            with tracer.start_as_current_span("dump_frontier_exec_time") as span:
+                span.set_attribute("exec_time_improvement", exec_time_improvement)
         except:
             pass

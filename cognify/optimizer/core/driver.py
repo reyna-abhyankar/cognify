@@ -16,8 +16,8 @@ from cognify.optimizer.core.unified_layer_opt import (
     BottomLevelTrialLog,
 )
 from cognify.optimizer.core.upper_layer import UpperLevelOptimization, LayerEvaluator
-from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv
-from cognify._tracing import trace_quality_improvement, trace_cost_improvement
+from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv, _report_latency_reduction
+from cognify._tracing import trace_quality_improvement, trace_cost_improvement, trace_latency_improvement
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ class MultiLayerOptimizationDriver:
         quality_constraint: float = None,
         base_quality: float = None,
         base_cost: float = None,
+        base_exec_time: float = None,
     ):
         """Driver for multi-layer optimization
 
@@ -41,6 +42,7 @@ class MultiLayerOptimizationDriver:
         self.quality_constraint = quality_constraint
         self.base_quality = base_quality
         self.base_cost = base_cost
+        self.base_exec_time = base_exec_time
 
         # initialize optimization layers
         self.opt_layers: list[OptimizationLayer] = [None] * len(layer_configs)
@@ -68,6 +70,7 @@ class MultiLayerOptimizationDriver:
                     quality_constraint=self.quality_constraint,
                     base_quality=self.base_quality,
                     base_cost=self.base_cost,
+                    base_exec_time=self.base_exec_time,
                     hierarchy_level=idx,
                 )
             else:
@@ -86,6 +89,7 @@ class MultiLayerOptimizationDriver:
                     quality_constraint=self.quality_constraint,
                     base_quality=self.base_quality,
                     base_cost=self.base_cost,
+                    base_exec_time=self.base_exec_time,
                     hierarchy_level=idx,
                 )
             self.opt_layers[idx] = opt_layer
@@ -231,7 +235,11 @@ class MultiLayerOptimizationDriver:
                 cost_improvement = _report_cost_reduction(trial_log.price, self.base_cost)
                 details += ("  Cost is {:.2f}x original".format(cost_improvement))
                 trace_cost_improvement(cost_improvement)
-            details += f"Quality: {trial_log.score:.3f}, Cost per 1K invocation: ${trial_log.price * 1000:.2f}\n"
+            if self.base_exec_time is not None:
+                exec_time_improvement = _report_latency_reduction(trial_log.exec_time, self.base_exec_time)
+                details += ("  Execution time is {:.2f}x original".format(exec_time_improvement))
+                trace_latency_improvement(exec_time_improvement)
+            details += f"Quality: {trial_log.score:.3f}, Cost per 1K invocation: ${trial_log.price * 1000:.2f}, Execution time: {trial_log.exec_time:.2f}s \n"
             details += trans
             with open(dump_path, "w") as f:
                 f.write(details)
