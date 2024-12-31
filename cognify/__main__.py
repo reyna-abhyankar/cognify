@@ -1,7 +1,6 @@
 import argparse
-import debugpy
 import logging
-
+import os
 
 from cognify.cognify_args import (
     init_cognify_args,
@@ -16,12 +15,13 @@ from cognify.run.optimize import optimize
 from cognify.run.evaluate import evaluate
 from cognify.run.inspect import inspect
 from cognify._logging import _configure_logger
+from cognify._tracing import trace_cli_args, trace_workflow, initial_usage_message
 
 logger = logging.getLogger(__name__)
 
-
 def from_cognify_args(args):
     if args.mode == "optimize":
+        trace_cli_args(args)
         return OptimizationArgs.from_cli_args(args)
     elif args.mode == "evaluate":
         return EvaluationArgs.from_cli_args(args)
@@ -32,6 +32,9 @@ def from_cognify_args(args):
 
 
 def parse_pipeline_config_file(config_path, load_data: bool = True):
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+    
     config_module = capture_module_from_fs(config_path)
 
     # get optimizer control parameters
@@ -41,6 +44,7 @@ def parse_pipeline_config_file(config_path, load_data: bool = True):
 
     # load data
     data_loader_fn = get_registered_data_loader()
+    print("Loading training data...")
     train_set, val_set, test_set = data_loader_fn()
     logger.info(
         f"size of train set: {0 if not train_set else len(train_set)}, "
@@ -55,6 +59,8 @@ def optimize_routine(opt_args: OptimizationArgs):
     (train_set, val_set, test_set), control_param = parse_pipeline_config_file(
         opt_args.config
     )
+
+    trace_workflow(opt_args.workflow)
 
     cost, frontier, opt_logs = optimize(
         script_path=opt_args.workflow,
@@ -90,15 +96,12 @@ def inspect_routine(inspect_args: InspectionArgs):
     _, control_param = parse_pipeline_config_file(inspect_args.config, load_data=False)
     inspect(
         control_param=control_param,
-        dump_frontier_details=inspect_args.dump_frontier_details,
+        dump_frontier_details=inspect_args.dump_optimization_results,
     )
 
 
 def main():
-    # debugpy.listen(5678)
-    # print("Waiting for debugger attach")
-    # debugpy.wait_for_client()
-    # debugpy.breakpoint()
+    initial_usage_message()
 
     parser = argparse.ArgumentParser()
     init_cognify_args(parser)
@@ -106,6 +109,12 @@ def main():
     _configure_logger(raw_args.log_level)
 
     cognify_args = from_cognify_args(raw_args)
+
+    if raw_args.mode == "optimize" or raw_args.mode == "evaluate":
+        workflow_path = cognify_args.workflow
+        if not os.path.exists(workflow_path):
+            raise FileNotFoundError(f"Workflow file not found: {workflow_path}")
+
     if raw_args.mode == "optimize":
         optimize_routine(cognify_args)
     elif raw_args.mode == "evaluate":

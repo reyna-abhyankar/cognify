@@ -693,18 +693,24 @@ class OptimizationLayer:
         if self.hierarchy_level == 0:
             print(f"================ Optimization Results =================") 
             print(f"Optimized for: {str(self.objectives)}")
-            print(f"Num Pareto Frontier: {len(pareto_frontier)}")
-            for i, (trial_log, log_path) in enumerate(pareto_frontier):
-                print("--------------------------------------------------------")
-                print("Pareto_{}".format(i + 1))
-                # logger.info("  Params: {}".format(trial_log.params))
-                if self.base_quality is not None:
-                    print("  Quality improves by {:.0f}%".format(_report_quality_impv(trial_log.score, self.base_quality)))
-                if self.base_cost is not None:
-                    print("  Cost is {:.2f}x original".format(_report_cost_reduction(trial_log.price, self.base_cost)))
-                if self.base_exec_time is not None:
-                    print("  Execution time is {:.2f}x original".format(_report_latency_reduction(trial_log.exec_time, self.base_exec_time)))
-                print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, Execution time: {:.2f}s".format(trial_log.score, trial_log.price * 1000, trial_log.exec_time))
+            
+        if len(pareto_frontier) == 0:
+            print("Based on current optimization parameters, the best solution is the original workflow.")
+            print("We recommend increasing the number of trials or relaxing constraints.")
+        else:
+            print(f"Number of Optimized Workflows Generated: {len(pareto_frontier)}")
+
+        for i, (trial_log, log_path) in enumerate(pareto_frontier):
+            print("--------------------------------------------------------")
+            print("Optimization_{}".format(i + 1))
+            # logger.info("  Params: {}".format(trial_log.params))
+            if self.base_quality is not None:
+                print("  Quality improvement: {:.0f}%".format(_report_quality_impv(trial_log.score, self.base_quality)))
+            if self.base_cost is not None:
+                print("  Cost: {:.2f}x original".format(_report_cost_reduction(trial_log.price, self.base_cost)))
+            if self.base_exec_time is not None:
+                print("  Execution time: {:.2f}x original".format(_report_latency_reduction(trial_log.exec_time, self.base_exec_time)))
+            print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, Execution time: {:.2f}s".format(trial_log.score, trial_log.price * 1000, trial_log.exec_time))
                 # print("  Applied at: {}".format(trial_log.id))
                 # logger.info("  config saved at: {}".format(log_path))
 
@@ -1017,7 +1023,7 @@ class BottomLevelOptimization(OptimizationLayer):
         
         print(f"=========== Evaluation Results ===========") 
         if base_quality is not None:
-            print("  Quality improves by {:.0f}%".format(_report_quality_impv(trial_log.score, base_quality)))
+            print("  Quality improvement: {:.0f}%".format(_report_quality_impv(trial_log.score, base_quality)))
         if base_cost is not None:
             print("  Cost is {:.2f}x original".format(_report_cost_reduction(trial_log.price, base_cost)))
         if base_exec_time is not None:
