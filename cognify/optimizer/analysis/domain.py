@@ -30,7 +30,7 @@ class TextEmbeddingDomainManager(DomainManagerInterface):
 
     def _partition_by_embedding(
         self,
-        samples: list, 
+        samples: list[str], 
     ):
         """
         Encode the input data into the embedding space then do k-means clustering

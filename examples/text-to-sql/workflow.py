@@ -36,7 +36,7 @@ def worker(args, dataset):
     
     run_start_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     task = Task(dataset[0])
-    result_dir = f"opt_f1_on_cg_results/{task.db_id}/{task.question_id}/{run_start_time}"
+    result_dir = f"opt_cg_on_f1_results/{task.db_id}/{task.question_id}/{run_start_time}"
     if not os.path.exists(result_dir):
         os.makedirs(result_dir, exist_ok=True)
 

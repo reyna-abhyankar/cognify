@@ -31,4 +31,4 @@ def eval(stats):
     return 1.0 if correct else 0.0
 
 from cognify.hub.search import text_to_sql
-search_settings = text_to_sql.create_search(opt_log_dir="cognify_opt_f1_history")
+search_settings = text_to_sql.create_search(opt_log_dir="cognify_opt_cg_history")
