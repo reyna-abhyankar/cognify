@@ -22,6 +22,7 @@ def initial_usage_message():
     marker_file = Path(__file__).parent / marker_file_name
 
     if not marker_file.exists():
+        user_id = generate_user_identifier()
         # Show the first-run message
         print(f"""
 Thank you for using Cognify-{version}! 🚀 To better understand how Cognify is used in the real world, we collect the following telemetry metadata:
@@ -36,14 +37,14 @@ Thank you for using Cognify-{version}! 🚀 To better understand how Cognify is 
     - A consistent, anonymized user identifier based on your hostname and IP address for GDPR-related compliance (i.e. data deletion).
 We do not record your workflow or your dataset. If you would like to opt-out, simply add COGNIFY_TELEMETRY=false to your environment variables.
 If in the future you would like to delete this data, you can contact us with the following user id:
-{generate_user_identifier()}
+{user_id}
 Please store this for future reference.
 """)
 
-    # Create the marker file
-    with open(marker_file, "w") as f:
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        f.write(f"This file marks the first run of Cognify-{version} on {current_time}.\n")
+        # Create the marker file
+        with open(marker_file, "w") as f:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"This file marks the first run of Cognify-{version} on {current_time}. User identifier: {user_id}\n")
 
 
 def generate_user_identifier():
@@ -95,7 +96,7 @@ def trace_cli_args(args):
         except:
             pass
 
-def trace_default_search(search_type, quality_constraint, objectives):
+def trace_default_search(search_type: str, quality_constraint: float, objectives: list[str]):
     if is_telemetry_on():
         try:
             with tracer.start_as_current_span("default_search") as span:
@@ -105,7 +106,7 @@ def trace_default_search(search_type, quality_constraint, objectives):
         except:
             pass
 
-def trace_custom_search(search_mode, n_trials, quality_constraint):
+def trace_custom_search(search_mode: str, n_trials: int, quality_constraint: float):
     if is_telemetry_on():
         try:
             with tracer.start_as_current_span("custom_search") as span:

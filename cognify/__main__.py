@@ -35,7 +35,7 @@ def parse_pipeline_config_file(config_path, load_data: bool = True):
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
     
-    config_module = capture_module_from_fs(config_path)
+    config_module = capture_module_from_fs(config_path, mode="config")
 
     # get optimizer control parameters
     control_param = ControlParameter.build_control_param(loaded_module=config_module)
