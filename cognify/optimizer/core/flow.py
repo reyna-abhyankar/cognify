@@ -169,7 +169,12 @@ class TopDownInformation:
         default_factory=list
     )  # series of [layer_name_trial_id]
 
-    def initialize(self):
+    def initialize(self, ori_opt_config: OptConfig):
+        if self.opt_config is None:
+            self.opt_config = ori_opt_config
+        else:
+            self.opt_config.update(ori_opt_config)
+        
         self.opt_config.finalize()
         self.all_params = self.all_params or {}
         self.script_args = self.script_args or []

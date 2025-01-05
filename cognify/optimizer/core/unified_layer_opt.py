@@ -327,7 +327,7 @@ class OptimizationLayer:
                 new_modules.append(new_module)
         return new_modules, trace_for_next_level
 
-    def generate_trial_id(self) -> tuple[str, int]:
+    def generate_trial_log_id(self) -> tuple[str, int]:
         # always increment the trial number
         # optuna trial id start from num_trials, if previous run is interrupted
         # using optuna trial number will have conflict
@@ -358,7 +358,7 @@ class OptimizationLayer:
             logger.debug(
                 f"- {self.name} - apply param - Trial {trial.number} params: {trial.params}"
             )
-            trial_id_str = self.generate_trial_id()
+            trial_id_str = self.generate_trial_log_id()
             trial_log = self.trial_log_cls(
                 params=trial.params, bo_trial_id=trial.number, id=trial_id_str
             )

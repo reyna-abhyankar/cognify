@@ -447,12 +447,14 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
     
     def evaluate(
         self,
-        task: EvalTask,
+        task: Union[EvalTask, TopDownInformation],
         show_process: bool = False,
         pbar_position: int = 0,
         hierarchy_level: int = 0,
         **kwargs,
     ):
+        if isinstance(task, TopDownInformation):
+            task = EvalTask.from_top_down_info(task)
         return self.get_score(
             mode="train",
             task=task,

@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Union, Optional, Callable
+from typing import Union, Optional
 import logging
 import re
 
@@ -16,27 +16,10 @@ from cognify.optimizer.core.unified_layer_opt import (
     BottomLevelTrialLog,
 )
 from cognify.optimizer.core.upper_layer import UpperLevelOptimization, LayerEvaluator
-from cognify.optimizer.core.opt_layer import OptLayer, GlobalOptConfig
+from cognify.optimizer.core.opt_layer import OptLayer
 from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv
 
 logger = logging.getLogger(__name__)
-
-def get_layer_evaluator_factory(
-    next_layer_factory, 
-    layer_config: LayerConfig,
-    level: int,
-):
-    def _factory():
-        return OptLayer(
-            name=layer_config.layer_name,
-            opt_config=layer_config.opt_config,
-            next_layer_factory=next_layer_factory,
-            dedicate_params=layer_config.dedicate_params,
-            universal_params=layer_config.universal_params,
-            target_modules=layer_config.target_modules,
-            hierarchy_level=level
-        )
-    return _factory
 
 class MultiLayerOptimizationDriver:
     def __init__(
@@ -55,13 +38,12 @@ class MultiLayerOptimizationDriver:
         NOTE: the order of the layers is from top to bottom, i.e., the last layer will run program evaluation directly while others will run layer evaluation
         """
         self.layer_configs = layer_configs
-        
-        GlobalOptConfig.quality_constraint = quality_constraint
-        GlobalOptConfig.base_quality = base_quality
-        GlobalOptConfig.base_cost = base_cost
+        self.quality_constraint = quality_constraint
+        self.base_quality = base_quality
+        self.base_cost = base_cost
 
         # initialize optimization layers
-        self.opt_layer_factories: list[Callable] = [None] * (len(layer_configs) + 1)
+        self.opt_layers: list[OptimizationLayer] = [None] * len(layer_configs)
 
         self.opt_log_dir = opt_log_dir
 
@@ -70,22 +52,43 @@ class MultiLayerOptimizationDriver:
         self.layer_configs[0].opt_config.log_dir = os.path.join(
             opt_log_dir, self.layer_configs[0].layer_name
         )
-        # NOTE: since these will be set at runtime, we set them to None
-        for layer_config in self.layer_configs[1:]:
-            layer_config.opt_config.log_dir = None
-            layer_config.opt_config.opt_log_path = None
-            layer_config.opt_config.param_save_path = None
-            
 
     def build_tiered_optimization(self, evaluator: EvaluatorPlugin):
         """Build tiered optimization from bottom to top"""
-        self.opt_layer_factories[-1] = lambda: evaluator
-        
         for ri, layer_config in enumerate(reversed(self.layer_configs)):
-            idx = len(self.layer_configs) - ri - 1
-            next_layer_factory = self.opt_layer_factories[idx + 1]
-            current_layer_factory = get_layer_evaluator_factory(next_layer_factory, layer_config, idx)
-            self.opt_layer_factories[idx] = current_layer_factory
+            idx = len(self.layer_configs) - 1 - ri
+            if ri == 0:
+                opt_layer = BottomLevelOptimization(
+                    name=layer_config.layer_name,
+                    evaluator=evaluator,
+                    dedicate_params=layer_config.dedicate_params,
+                    universal_params=layer_config.universal_params,
+                    target_modules=layer_config.target_modules,
+                    save_ckpt_interval=layer_config.save_ckpt_interval,
+                    quality_constraint=self.quality_constraint,
+                    base_quality=self.base_quality,
+                    base_cost=self.base_cost,
+                    hierarchy_level=idx,
+                )
+            else:
+                layer_evaluator = LayerEvaluator(
+                    target_layer=self.opt_layers[idx + 1],
+                )
+                opt_layer = UpperLevelOptimization(
+                    name=layer_config.layer_name,
+                    evaluator=layer_evaluator,
+                    dedicate_params=layer_config.dedicate_params,
+                    universal_params=layer_config.universal_params,
+                    target_modules=layer_config.target_modules,
+                    save_ckpt_interval=layer_config.save_ckpt_interval,
+                    next_level_opt_config=self.layer_configs[idx + 1].opt_config,
+                    use_SH_allocation=layer_config.opt_config.use_SH_allocation,
+                    quality_constraint=self.quality_constraint,
+                    base_quality=self.base_quality,
+                    base_cost=self.base_cost,
+                    hierarchy_level=idx,
+                )
+            self.opt_layers[idx] = opt_layer
 
     def run(
         self,
@@ -95,9 +98,10 @@ class MultiLayerOptimizationDriver:
         other_python_paths: Optional[list[str]] = None,
     ) -> tuple[float, list[tuple[TrialLog, str]], dict[str, TrialLog]]:
         self.build_tiered_optimization(evaluator)
-        top_layer = self.opt_layer_factories[0]()
+        first_layer_opt_config = self.layer_configs[0].opt_config
         logger.info("----------------- Start Optimization -----------------")
-        opt_cost, frontier, all_opt_logs = top_layer.easy_optimize(
+        opt_cost, frontier, all_opt_logs = self.opt_layers[0].easy_optimize(
+            opt_config=first_layer_opt_config,
             script_path=script_path,
             script_args=script_args,
             other_python_paths=other_python_paths,
@@ -216,14 +220,14 @@ class MultiLayerOptimizationDriver:
         for i, (trial_log, opt_path) in enumerate(frontier):
             trial_log: BottomLevelTrialLog
             dump_path = os.path.join(param_log_dir, f"Pareto_{i+1}.cog")
-            # trans = trial_log.show_transformation()
+            trans = trial_log.show_transformation()
             details = f"Trial - {trial_log.id}\n"
             details += f"Log at: {opt_path}\n"
-            if GlobalOptConfig.base_quality is not None:
-                details += ("  Quality improves by {:.0f}%\n".format(_report_quality_impv(trial_log.score, GlobalOptConfig.base_quality)))
-            if GlobalOptConfig.base_cost is not None:
-                details += ("  Cost is {:.2f}x original, ".format(_report_cost_reduction(trial_log.price, GlobalOptConfig.base_cost)))
+            if self.base_quality is not None:
+                details += ("  Quality improves by {:.0f}%\n".format(_report_quality_impv(trial_log.score, self.base_quality)))
+            if self.base_cost is not None:
+                details += ("  Cost is {:.2f}x original, ".format(_report_cost_reduction(trial_log.price, self.base_cost)))
             details += f"Quality: {trial_log.score:.3f}, Cost per 1K invocation ($): {trial_log.price * 1000:.2f} $\n"
-            # details += trans
+            details += trans
             with open(dump_path, "w") as f:
                 f.write(details)
