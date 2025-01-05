@@ -78,7 +78,7 @@ resource = Resource.create(attributes={
 })
 
 provider = TracerProvider(resource=resource)
-processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://wuklab-01.ucsd.edu:4318/v1/traces"))
+processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://wuklab-08.ucsd.edu:4318/v1/traces"))
 # to set up your own telemetry, you can add a new exporter to a custom endpoint
 provider.add_span_processor(processor)
 
