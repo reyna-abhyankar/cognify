@@ -41,6 +41,6 @@ from cognify.hub.search import default
 
 search_settings = default.create_search(
     search_type='medium',
-    n_trials=30,
+    # n_trials=30,
     opt_log_dir='test_new_driver',
 )

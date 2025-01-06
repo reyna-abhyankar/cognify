@@ -9,14 +9,9 @@ from cognify.optimizer.evaluator import (
     EvaluatorPlugin,
     EvalTask,
 )
-from cognify.optimizer.core.flow import TrialLog, TopDownInformation, LayerConfig
-from cognify.optimizer.core.unified_layer_opt import (
-    OptimizationLayer,
-    BottomLevelOptimization,
-    BottomLevelTrialLog,
-)
-from cognify.optimizer.core.upper_layer import UpperLevelOptimization, LayerEvaluator
+from cognify.optimizer.core.flow import TopDownInformation, LayerConfig
 from cognify.optimizer.core.opt_layer import OptLayer, GlobalOptConfig
+from cognify.optimizer.checkpoint.ckpt import LogManager, TrialLog
 from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv
 
 logger = logging.getLogger(__name__)
@@ -25,16 +20,18 @@ def get_layer_evaluator_factory(
     next_layer_factory, 
     layer_config: LayerConfig,
     level: int,
+    is_leaf: bool
 ):
     def _factory():
         return OptLayer(
             name=layer_config.layer_name,
             opt_config=layer_config.opt_config,
+            hierarchy_level=level,
+            is_leaf=is_leaf,
             next_layer_factory=next_layer_factory,
             dedicate_params=layer_config.dedicate_params,
             universal_params=layer_config.universal_params,
             target_modules=layer_config.target_modules,
-            hierarchy_level=level
         )
     return _factory
 
@@ -58,7 +55,8 @@ class MultiLayerOptimizationDriver:
         
         GlobalOptConfig.quality_constraint = quality_constraint
         GlobalOptConfig.base_quality = base_quality
-        GlobalOptConfig.base_cost = base_cost
+        GlobalOptConfig.base_price = base_cost
+        _log_mng = LogManager(base_quality, base_cost)
 
         # initialize optimization layers
         self.opt_layer_factories: list[Callable] = [None] * (len(layer_configs) + 1)
@@ -84,7 +82,7 @@ class MultiLayerOptimizationDriver:
         for ri, layer_config in enumerate(reversed(self.layer_configs)):
             idx = len(self.layer_configs) - ri - 1
             next_layer_factory = self.opt_layer_factories[idx + 1]
-            current_layer_factory = get_layer_evaluator_factory(next_layer_factory, layer_config, idx)
+            current_layer_factory = get_layer_evaluator_factory(next_layer_factory, layer_config, idx, ri == 0)
             self.opt_layer_factories[idx] = current_layer_factory
 
     def run(
@@ -97,14 +95,14 @@ class MultiLayerOptimizationDriver:
         self.build_tiered_optimization(evaluator)
         top_layer = self.opt_layer_factories[0]()
         logger.info("----------------- Start Optimization -----------------")
-        opt_cost, frontier, all_opt_logs = top_layer.easy_optimize(
+        opt_cost, frontier, finished_opt_logs = top_layer.easy_optimize(
             script_path=script_path,
             script_args=script_args,
             other_python_paths=other_python_paths,
         )
         logger.info("----------------- Optimization Finished -----------------")
-        self.dump_frontier_details(frontier)
-        return opt_cost, frontier, all_opt_logs
+        self.dump_frontier_details(frontier, finished_opt_logs)
+        return opt_cost, frontier, finished_opt_logs
 
     def _extract_trial_id(self, config_id: str) -> str:
         param_log_dir = os.path.join(self.opt_log_dir, "pareto_frontier_details")
@@ -156,74 +154,94 @@ class MultiLayerOptimizationDriver:
         evaluator: EvaluatorPlugin,
         config_id: str,
     ) -> EvaluationResult:
-        self.build_tiered_optimization(evaluator)
+        self.load_from_file()
         trial_id = self._extract_trial_id(config_id)
-        config_path = self._find_config_log_path(trial_id)
+        log = LogManager().get_log_by_id(trial_id)
 
-        result = BottomLevelOptimization.easy_eval(
-            evaluator=evaluator,
-            trial_id=trial_id,
-            opt_log_path=config_path,
-            base_quality=self.base_quality,
-            base_cost=self.base_cost,
-        )
-        return result
+        # apply selected trial
+        print(f"----- Testing {config_id} -----")
+        # print("  Training Quality: {:.3f}, Cost per 1K invocation: ${:.2f}\n".format(trial_log.score, trial_log.price * 1000))
+        
+        eval_task = EvalTask.from_dict(log.eval_task_dict)
+        # run evaluation
+        eval_result = evaluator.get_score(mode='test', task=eval_task, show_process=True, keep_bar=True)
+        
+        print(f"=========== Evaluation Results ===========") 
+        if GlobalOptConfig.base_quality is not None:
+            print("  Quality improves by {:.0f}%".format(_report_quality_impv(eval_result.reduced_score, GlobalOptConfig.base_quality)))
+        if GlobalOptConfig.base_price is not None:
+            print("  Cost is {:.2f}x original".format(_report_cost_reduction(eval_result.reduced_price, GlobalOptConfig.base_price)))
+        print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}".format(eval_result.reduced_score, eval_result.reduced_price * 1000))
+        print("===========================================")
+
+        return eval_result
 
     def load(
         self,
         config_id: str,
     ):
-        self.build_tiered_optimization(None)
         trial_id = self._extract_trial_id(config_id)
-        config_path = self._find_config_log_path(trial_id)
-
-        with open(config_path, "r") as f:
-            opt_trace = json.load(f)
-        trial_log = BottomLevelTrialLog.from_dict(opt_trace[trial_id])
-        eval_task = EvalTask.from_dict(trial_log.eval_task)
+        log = LogManager().get_log_by_id(trial_id)
+        eval_task = EvalTask.from_dict(log.eval_task)
         schema, old_name_2_new_module = eval_task.load_and_transform()
         return schema, old_name_2_new_module
 
     def inspect(self, dump_details: bool = False):
-        self.build_tiered_optimization(None)
-        opt_config = self.layer_configs[0].opt_config
-        opt_config.finalize()
-        tdi = TopDownInformation(
-            opt_config=opt_config,
-            all_params=None,
-            module_ttrace=None,
-            current_module_pool=None,
-            script_path=None,
-            script_args=None,
-            other_python_paths=None,
-        )
-
-        top_layer = self.opt_layers[0]
-        top_layer.load_opt_log(opt_config.opt_log_path)
-        top_layer.top_down_info = tdi
-
-        frontier = self.opt_layers[0].post_optimize()
-
+        self.load_from_file()
         # dump frontier details to file
+        opt_cost, pareto_frontier, finished_opt_logs = LogManager().get_global_summary(verbose=True)
         if dump_details:
-            self.dump_frontier_details(frontier)
+            self.dump_frontier_details(pareto_frontier, finished_opt_logs)
         return
 
-    def dump_frontier_details(self, frontier):
+    def dump_frontier_details(self, frontier, finished_opt_logs):
         param_log_dir = os.path.join(self.opt_log_dir, "pareto_frontier_details")
         if not os.path.exists(param_log_dir):
             os.makedirs(param_log_dir, exist_ok=True)
-        for i, (trial_log, opt_path) in enumerate(frontier):
-            trial_log: BottomLevelTrialLog
+        for i, trial_log in enumerate(frontier):
+            trial_log: TrialLog
+            score, price = trial_log.result.reduced_score, trial_log.result.reduced_price
             dump_path = os.path.join(param_log_dir, f"Pareto_{i+1}.cog")
-            # trans = trial_log.show_transformation()
             details = f"Trial - {trial_log.id}\n"
-            details += f"Log at: {opt_path}\n"
+            log_path = finished_opt_logs[trial_log.id][1]
+            details += f"Log at: {log_path}\n"
             if GlobalOptConfig.base_quality is not None:
-                details += ("  Quality improves by {:.0f}%\n".format(_report_quality_impv(trial_log.score, GlobalOptConfig.base_quality)))
-            if GlobalOptConfig.base_cost is not None:
-                details += ("  Cost is {:.2f}x original, ".format(_report_cost_reduction(trial_log.price, GlobalOptConfig.base_cost)))
-            details += f"Quality: {trial_log.score:.3f}, Cost per 1K invocation ($): {trial_log.price * 1000:.2f} $\n"
-            # details += trans
+                details += ("  Quality improves by {:.0f}%\n".format(_report_quality_impv(score, GlobalOptConfig.base_quality)))
+            if GlobalOptConfig.base_price is not None:
+                details += ("  Cost is {:.2f}x original, ".format(_report_cost_reduction(price, GlobalOptConfig.base_price)))
+            details += f"Quality: {score:.3f}, Cost per 1K invocation ($): {price * 1000:.2f} $\n"
+            trans = trial_log.show_transformation()
+            details += trans
             with open(dump_path, "w") as f:
                 f.write(details)
+    
+    def load_from_file(self):
+        root_log = self.layer_configs[0].opt_config
+        root_log.finalize()
+        _log_dir_stack = [root_log.log_dir]
+        leaf_layer_name = self.layer_configs[-1].layer_name
+        
+        while _log_dir_stack:
+            log_dir = _log_dir_stack.pop()
+            opt_log_path = os.path.join(log_dir, "opt_logs.json")
+            
+            if not os.path.exists(opt_log_path):
+                continue
+            with open(opt_log_path, "r") as f:
+                opt_trace = json.load(f)
+                
+                for log_id, log in opt_trace.items():
+                    layer_instance = log_id.rsplit("_", 1)[0]
+                    layer_name = log["layer_name"]
+                    trial_number = log_id.rsplit("_", 1)[-1]
+                    sub_layer_log_dir = os.path.join(log_dir, f"{layer_name}_trial_{trial_number}")
+                    _log_dir_stack.append(sub_layer_log_dir)
+                    
+                LogManager().register_layer(
+                    layer_name=layer_name,
+                    layer_instance=layer_instance,
+                    opt_log_path=opt_log_path,
+                    is_leaf=layer_name == leaf_layer_name,
+                )
+                LogManager().load_existing_logs(layer_instance)
+            

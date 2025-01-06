@@ -22,7 +22,8 @@ from cognify.llm import Model, Demonstration
 from cognify.hub.cogs.common import CogBase
 from cognify.hub.cogs.utils import build_param
 from cognify.optimizer.plugin import OptimizerSchema, capture_module_from_fs
-from cognify.optimizer.core.flow import TopDownInformation, ModuleTransformTrace
+from cognify.optimizer.core.flow import TopDownInformation, ModuleTransformTrace, EvaluationResult, GeneralEvaluatorInterface
+from cognify.optimizer.checkpoint import pbar_utils
 
 logger = logging.getLogger(__name__)
 
@@ -30,86 +31,11 @@ def default_reduer(xs):
     return sum(xs) / len(xs)
 
 
-# {module_name: demo}
-TDemoInTrial = dict[str, Demonstration]
-
 class TaskStatus(Enum):
     SUCCESS = 1
     INTERRUPTED = 2
     FAILED = 3
 
-class EvaluationResult:
-    def __init__(
-        self,
-        ids: Sequence[str],
-        scores: Sequence[float],
-        prices: Sequence[float],
-        exec_times: Sequence[float],
-        total_eval_cost: float,
-        complete: bool,
-        reduced_score: Optional[float] = None,
-        reduced_price: Optional[float] = None,
-        demos: Optional[Sequence[TDemoInTrial]] = None,
-        meta: Optional[dict] = None,
-    ) -> None:
-        self.ids = ids
-        self.scores = scores
-        self.prices = prices
-        self.exec_times = exec_times
-        self.total_eval_cost = total_eval_cost
-        self.complete = complete
-        self.reduced_score = reduced_score
-        self.reduced_price = reduced_price
-        self.demos = demos
-        self.meta = meta
-
-    def __str__(self) -> str:
-        return (
-            f"EvalResult: score: {self.reduced_score}, "
-            f"price: {self.reduced_price}, "
-            f"{len(self.scores)} samples, "
-            f"eval cost: {self.total_eval_cost}, "
-            f"avg exec time: {sum(self.exec_times) / len(self.exec_times)} s"
-        )
-
-    def to_dict(self):
-        """return result stats
-
-        meta and demos are not included
-        """
-        stats = {}
-        stats["summary"] = {
-            "reduced_score": self.reduced_score,
-            "reduced_price": self.reduced_price,
-            "total_eval_cost": self.total_eval_cost,
-            "complete": self.complete,
-        }
-        stats["detailed"] = []
-        for id, score, price, exec_time in zip(
-            self.ids, self.scores, self.prices, self.exec_times
-        ):
-            stats["detailed"].append(
-                {
-                    "id": id,
-                    "score": score,
-                    "price": price,
-                    "exec_time": exec_time,
-                }
-            )
-        return stats
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        return cls(
-            ids=[d["id"] for d in data["detailed"]],
-            scores=[d["score"] for d in data["detailed"]],
-            prices=[d["price"] for d in data["detailed"]],
-            exec_times=[d["exec_time"] for d in data["detailed"]],
-            total_eval_cost=data["summary"]["total_eval_cost"],
-            complete=data["summary"]["complete"],
-            reduced_score=data["summary"]["reduced_score"],
-            reduced_price=data["summary"]["reduced_price"],
-        )
 
 
 class EvalFn:
@@ -397,18 +323,7 @@ class EvalTask:
         )
 
 
-class GeneralEvaluatorInterface(ABC):
-    @abstractmethod
-    def evaluate(
-        self,
-        task: Union[EvalTask, TopDownInformation],
-        **kwargs,
-    ) -> EvaluationResult: ...
 
-
-def _gen_pbar_desc(level, tb, score, price):
-    indent = "---" * level + ">"
-    return f"{indent} Evaluation in {tb} | (avg score: {score:.2f}, avg cost@1000: {price*1000:.2f} $)"
 
 
 class EvaluatorPlugin(GeneralEvaluatorInterface):
@@ -447,19 +362,15 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
     
     def evaluate(
         self,
-        task: Union[EvalTask, TopDownInformation],
+        task: EvalTask,
         show_process: bool = False,
-        pbar_position: int = 0,
         hierarchy_level: int = 0,
         **kwargs,
     ):
-        if isinstance(task, TopDownInformation):
-            task = EvalTask.from_top_down_info(task)
         return self.get_score(
             mode="train",
             task=task,
             show_process=show_process,
-            pbar_position=pbar_position,
             hierarchy_level=hierarchy_level,
         )
 
@@ -468,7 +379,6 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         mode: Literal["train", "eval", "test"],
         task: EvalTask,
         show_process: bool,
-        pbar_position: int = 0,
         hierarchy_level: int = 0,
         keep_bar: bool = False,
     ):
@@ -484,62 +394,65 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         result_q = mp.Queue()
 
         total_score, total_cost, n_success = 0.0, 0.0, 0
-        opt_trace = ".".join(task.trace_back)
-
-        def update_pbar(pbar, eval_result):
+        bar_name = "Eval in " + ".".join(task.trace_back)
+        
+        pbar_utils.add_pbar(
+            name=bar_name,
+            desc=pbar_utils._gen_eval_bar_desc(0, 0, 0, bar_name, hierarchy_level + 1),
+            total=len(indices),
+            initial=0,
+            leave=keep_bar,
+            indent=hierarchy_level + 1,
+        )
+        
+        def update_pbar(eval_result):
             nonlocal total_score, total_cost, n_success
             n_success += 1
             score, price = eval_result[3], eval_result[4]
             total_score += score
             total_cost += price
-            pbar.update(1)
-            pbar.set_description(
-                _gen_pbar_desc(
-                    hierarchy_level,
-                    opt_trace,
-                    total_score / n_success,
-                    total_cost / n_success,
-                )
+            pbar_utils.add_opt_progress(
+                name=bar_name,
+                score=total_score / n_success,
+                price=total_cost / n_success,
+                total_cost=total_cost,
+                is_evaluator=True,
             )
 
         results = []
-        with tqdm(
-            total=len(indices),
-            desc=_gen_pbar_desc(hierarchy_level, opt_trace, 0.0, 0.0),
-            leave=keep_bar,
-            position=pbar_position,
-        ) as pbar:
-            n_visited = 0
-            for task_index, pair_idx in enumerate(indices):
-                if _should_exit():
-                    break
+        n_visited = 0
+        for task_index, pair_idx in enumerate(indices):
+            if _should_exit():
+                break
 
-                # check for result updates
-                while not result_q.empty():
-                    eval_result = result_q.get()
-                    n_visited += 1
-                    if not eval_result[1]:
-                        continue
-                    results.append(eval_result)
-                    if show_process:
-                        update_pbar(pbar, eval_result)
-
-                input, label = data[pair_idx]
-                sema.acquire()
-                worker = mp.Process(
-                    target=task.evaluate_program,
-                    args=(self._evaluator, input, label, task_index, sema, result_q),
-                )
-                worker.start()
-                all_workers.append(worker)
-
-            for i in range(len(all_workers) - n_visited):
+            # check for result updates
+            while not result_q.empty():
                 eval_result = result_q.get()
+                n_visited += 1
                 if not eval_result[1]:
                     continue
                 results.append(eval_result)
                 if show_process:
-                    update_pbar(pbar, eval_result)
+                    update_pbar(eval_result)
+
+            input, label = data[pair_idx]
+            sema.acquire()
+            worker = mp.Process(
+                target=task.evaluate_program,
+                args=(self._evaluator, input, label, task_index, sema, result_q),
+            )
+            worker.start()
+            all_workers.append(worker)
+
+        for i in range(len(all_workers) - n_visited):
+            eval_result = result_q.get()
+            if not eval_result[1]:
+                continue
+            results.append(eval_result)
+            if show_process:
+                update_pbar(eval_result)
+        
+        pbar_utils.close_pbar(bar_name)
 
         for worker in all_workers:
             worker.join()

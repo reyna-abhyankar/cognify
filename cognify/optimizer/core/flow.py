@@ -1,18 +1,104 @@
 import os
 import sys
-from typing import Optional, Tuple, Type, Iterable
+from typing import Optional, Tuple, Type, Iterable, Sequence
 import logging
 from collections import defaultdict
 import uuid
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, asdict
 
 from cognify.graph.program import Module
 from cognify.hub.cogs.common import CogBase
+from cognify.llm import Model, Demonstration
 from cognify.hub.cogs.utils import build_param
 from cognify.optimizer.plugin import capture_module_from_fs
 from cognify.optimizer.registry import get_registered_opt_modules
 
 logger = logging.getLogger(__name__)
+
+# {module_name: demo}
+TDemoInTrial = dict[str, Demonstration]
+
+class EvaluationResult:
+    def __init__(
+        self,
+        ids: Sequence[str],
+        scores: Sequence[float],
+        prices: Sequence[float],
+        exec_times: Sequence[float],
+        total_eval_cost: float,
+        complete: bool,
+        reduced_score: Optional[float] = None,
+        reduced_price: Optional[float] = None,
+        demos: Optional[Sequence[TDemoInTrial]] = None,
+        meta: Optional[dict] = None,
+    ) -> None:
+        self.ids = ids
+        self.scores = scores
+        self.prices = prices
+        self.exec_times = exec_times
+        self.total_eval_cost = total_eval_cost
+        self.complete = complete
+        self.reduced_score = reduced_score
+        self.reduced_price = reduced_price
+        self.demos = demos
+        self.meta = meta
+
+    def __str__(self) -> str:
+        return (
+            f"EvalResult: score: {self.reduced_score}, "
+            f"price: {self.reduced_price}, "
+            f"{len(self.scores)} samples, "
+            f"eval cost: {self.total_eval_cost}, "
+            f"avg exec time: {sum(self.exec_times) / len(self.exec_times)} s"
+        )
+
+    def to_dict(self):
+        """return result stats
+
+        meta and demos are not included
+        """
+        stats = {}
+        stats["summary"] = {
+            "reduced_score": self.reduced_score,
+            "reduced_price": self.reduced_price,
+            "total_eval_cost": self.total_eval_cost,
+            "complete": self.complete,
+        }
+        stats["detailed"] = []
+        for id, score, price, exec_time in zip(
+            self.ids, self.scores, self.prices, self.exec_times
+        ):
+            stats["detailed"].append(
+                {
+                    "id": id,
+                    "score": score,
+                    "price": price,
+                    "exec_time": exec_time,
+                }
+            )
+        return stats
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(
+            ids=[d["id"] for d in data["detailed"]],
+            scores=[d["score"] for d in data["detailed"]],
+            prices=[d["price"] for d in data["detailed"]],
+            exec_times=[d["exec_time"] for d in data["detailed"]],
+            total_eval_cost=data["summary"]["total_eval_cost"],
+            complete=data["summary"]["complete"],
+            reduced_score=data["summary"]["reduced_score"],
+            reduced_price=data["summary"]["reduced_price"],
+        )
+        
+class GeneralEvaluatorInterface(ABC):
+    @abstractmethod
+    def evaluate(
+        self,
+        task,
+        **kwargs,
+    ) -> EvaluationResult: ...
 
 
 class ModuleTransformTrace:
@@ -192,42 +278,6 @@ class TopDownInformation:
             name_2_type = {m.name: type(m) for m in self.current_module_pool.values()}
             self.module_ttrace = ModuleTransformTrace(name_2_type)
         self.module_ttrace.mflatten()
-
-
-class TrialLog:
-    def __init__(
-        self,
-        params: dict[str, any],
-        bo_trial_id: int,
-        id: str = None,
-        score: float = 0.0,
-        price: float = 0.0,
-        eval_cost: float = 0.0,
-        finished: bool = False,
-    ):
-        self.id: str = id or uuid.uuid4().hex
-        self.params = params
-        self.bo_trial_id = bo_trial_id
-        self.score = score
-        self.price = price
-        self.eval_cost = eval_cost
-        self.finished = finished
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "bo_trial_id": self.bo_trial_id,
-            "params": self.params,
-            "score": self.score,
-            "price": self.price,
-            "eval_cost": self.eval_cost,
-            "finished": self.finished,
-        }
-
-    @classmethod
-    def from_dict(cls, data):
-        return cls(**data)
-
 
 class LayerConfig:
     def __init__(
