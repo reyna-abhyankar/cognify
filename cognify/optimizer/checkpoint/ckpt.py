@@ -3,6 +3,7 @@ import json
 from typing import Any
 import logging
 import numpy as np
+import threading
 
 from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv
 from cognify.optimizer.core.glob_config import GlobalOptConfig
@@ -217,6 +218,7 @@ class LogManager:
         self.layer_stats: dict[str, LayerStat] = {}
         self._glob_best_score = base_score
         self._glob_lowest_cost = base_cost
+        self._glob_lock = threading.Lock()
     
     def register_layer(
         self, 
@@ -236,8 +238,9 @@ class LogManager:
         if result is None or not result.complete:
             return
         self.layer_stats[layer_instance].report_result(id, result)
-        self._update_glob_best_score(result.reduced_score)
-        self._update_glob_lowest_cost(result.reduced_price)
+        with self._glob_lock:
+            self._update_glob_best_score(result.reduced_score)
+            self._update_glob_lowest_cost(result.reduced_price)
     
     def load_existing_logs(self, layer_instance: str):
         self.layer_stats[layer_instance].load_existing_logs()
