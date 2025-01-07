@@ -37,7 +37,7 @@ def evaluate(
         evaluator_fn=eval_fn,
         n_parallel=n_parallel,
     )
-    if config_id == "NoChange":
+    if config_id == "Original":
         if workflow is None:
             raise ValueError(
                 "If evaluating the original workflow, path to the script should be provided"
