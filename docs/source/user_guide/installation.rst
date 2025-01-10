@@ -1,8 +1,10 @@
+.. _user_guide_installation:
+
 *****************
 Installation
 *****************
 
-You can install from pip or build from source. First, create a virtual environment and activate it:
+You can install from pip or build from `source <https://github.com/GenseeAI/cognify>`_. First, create a virtual environment and activate it:
 
 .. code-block:: bash
 
