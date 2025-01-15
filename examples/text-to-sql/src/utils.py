@@ -73,7 +73,8 @@ pipeline_setup=f'''{{
 
 cmd_args = [
     '--data_mode', 'dev',
-    '--pipeline_nodes', 'keyword_extraction+entity_retrieval+context_retrieval+column_filtering+table_selection+column_selection+candidate_generation+revision+evaluation',
+    # '--pipeline_nodes', 'keyword_extraction+entity_retrieval+context_retrieval+column_filtering+table_selection+column_selection+candidate_generation+revision+evaluation',
+    '--pipeline_nodes', 'keyword_extraction+entity_retrieval+context_retrieval+candidate_generation+revision+evaluation',
     '--pipeline_setup', pipeline_setup
 ]
 
