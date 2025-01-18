@@ -175,6 +175,7 @@ compiler_logs/
 
 local_testing/
 **initial_run
+*.pkl
 
 # secrets
 secrets.toml

@@ -1,10 +1,11 @@
+from typing import Literal
 from cognify.optimizer.core import driver, flow
 from cognify.optimizer.control_param import ControlParameter
 from cognify.hub.cogs import reasoning, ensemble, model_selection
 from cognify.hub.cogs.common import NoChange
 from cognify.hub.cogs.fewshot import LMFewShot
 from cognify.hub.cogs.reasoning import ZeroShotCoT
-from cognify.hub.search.default import SearchParams
+from cognify.hub.search.default import SearchParams, parse_objectives
 from cognify.llm import LMConfig
 from cognify._tracing import trace_custom_search
 
@@ -51,6 +52,7 @@ def create_qa_search(search_params: SearchParams) -> ControlParameter:
         opt_history_log_dir=search_params.opt_log_dir,
         evaluator_batch_size=search_params.evaluator_batch_size,
         quality_constraint=search_params.quality_constraint,
+        objectives=search_params.objectives
     )
     return optimize_control_param
 
@@ -61,6 +63,7 @@ def create_search(
     quality_constraint: float = 1.0,
     evaluator_batch_size: int = 10,
     opt_log_dir: str = "opt_results",
+    objectives: list[Literal["quality", "cost", "latency"]] = ["quality", "cost", "latency"],
     model_selection_cog: model_selection.LMSelection | list[LMConfig] | None = None,
 ):
     if model_selection_cog is not None:
@@ -74,8 +77,11 @@ def create_search(
             )
         assert isinstance(model_selection_cog, model_selection.LMSelection)
 
+    selected_objectives = parse_objectives(objectives)
+
     search_params = SearchParams(
         n_trials,
+        selected_objectives,
         quality_constraint,
         evaluator_batch_size,
         opt_log_dir,
