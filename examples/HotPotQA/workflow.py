@@ -4,10 +4,10 @@ dotenv.load_dotenv()
 
 import dspy
 
-gpt4o_mini = dspy.LM('gpt-4o', max_tokens=1000)
+gpt4o = dspy.LM('gpt-4o', max_tokens=1000)
 colbert = dspy.ColBERTv2(url=os.environ['COLBERT_URL'])
 
-dspy.configure(lm=gpt4o_mini, rm=colbert)
+dspy.configure(lm=gpt4o, rm=colbert)
 
 from dsp.utils.utils import deduplicate
 
