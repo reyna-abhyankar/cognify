@@ -222,3 +222,14 @@ You can evaluate the optimized workflow on the test data with:
 
     new_workflow = cognify.load_workflow(config_id='Optimization_3', opt_result_path='opt_results')
     answer = new_workflow(problem)
+
+**Command-line Interface**
+
+You can run a single request using the command line interface (CLI) as well:
+
+.. code-block:: console
+
+    $ cognify run workflow.py --select Optimization_3 --input "A bored student walks down a hall that contains a row of closed lockers..."
+    Loading workflow with Optimization_3
+    Running the following input: A bored student walks down a hall that contains a row of closed lockers...
+    Output: The last locker he opens is 342.

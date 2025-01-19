@@ -25,9 +25,8 @@ def load_data():
     devset = [formatting(x) for x in dataset.dev]
     return trainset, valset, devset # training and evaluation data
 
-from cognify.hub.search import default
-search_settings = default.create_search(
+from cognify.hub.search import qa
+search_settings = qa.create_search(
     evaluator_batch_size=12,
-    opt_log_dir='demo_results_test',
-    n_trials=5
+    opt_log_dir='hotpot_results'
 )

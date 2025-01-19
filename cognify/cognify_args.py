@@ -133,6 +133,30 @@ class InspectionArgs(CommonArgs):
             help="Dump descriptive optimization details.",
         )
 
+@dataclasses.dataclass
+class RunArgs(CommonArgs):
+    select: str = 'Original'
+    input: str = ""
+
+    @staticmethod
+    def add_cli_args(parser):
+        CommonArgs.add_cli_args(parser)
+        parser.add_argument(
+            "--select",
+            type=str,
+            required=True,
+            default=EvaluationArgs.select,
+            help="Select one configuration by ID for evaluation. If evaluating the original workflow, use 'Original'.",
+            metavar="Optimization_x/Original",
+        )
+        parser.add_argument(
+            "-i",
+            "--input",
+            type=str,
+            default=RunArgs.input,
+            help="Input string for the workflow (currently only single input supported).",
+            metavar="input_string",
+        )
 
 def init_cognify_args(parser):
     subparsers = parser.add_subparsers(dest="mode")
@@ -152,3 +176,8 @@ def init_cognify_args(parser):
         "inspect", formatter_class=argparse.RawTextHelpFormatter
     )
     InspectionArgs.add_cli_args(inspect_parser)
+
+    run_parser = subparsers.add_parser(
+        "run", formatter_class=argparse.RawTextHelpFormatter
+    )
+    RunArgs.add_cli_args(run_parser)
