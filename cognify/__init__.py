@@ -1,3 +1,5 @@
+print("Loading workflow...")
+
 from .llm import (
     Model,
     StructuredModel,
