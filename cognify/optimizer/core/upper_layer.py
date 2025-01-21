@@ -221,7 +221,7 @@ class UpperLevelOptimization(OptimizationLayer):
             return None, None, None
         return eval_result.reduced_score, eval_result.reduced_price, eval_result.reduced_exec_time
 
-    def _optimize_iteration(self, base_program):
+    def _optimize_iteration(self, base_program, frac: float):
         next_trial, program, new_trace, log_id = self.propose(base_program, 1)[0]
         next_level_info = self.prepare_next_level_tdi(
             program, new_trace, log_id,
@@ -264,9 +264,9 @@ class UpperLevelOptimization(OptimizationLayer):
             self.update(trial, eval_results[i], log_id)
             self.opt_logs[log_id].num_next_level_trials = num_inner_trials[i]
 
-    def _optimize(self, base_program):
+    def _optimize(self, base_program, frac: float):
         if not self.use_SH_allocation:
-            return super()._optimize(base_program)
+            return super()._optimize(base_program, frac)
 
         # use SH allocation
         opt_config = self.top_down_info.opt_config
