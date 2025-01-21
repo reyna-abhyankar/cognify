@@ -20,8 +20,6 @@ class ProgressInfo:
 
     def init_pbar(self, total, initial, initial_score, initial_cost, initial_exec_time, opt_cost):
         self.pbar_position = ProgressInfo.ask_for_position()
-        print(total)
-        print(initial)
         self.pbar = tqdm(
             total=total,
             initial=initial,
