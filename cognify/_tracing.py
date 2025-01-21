@@ -72,21 +72,24 @@ def generate_user_identifier():
 def is_telemetry_on():
     return os.getenv("COGNIFY_TELEMETRY", "true").lower() == "true"
 
-resource = Resource.create(attributes={
-    "service.name": "cognify",
-    "user.id": generate_user_identifier()
-})
+try:
+    resource = Resource.create(attributes={
+        "service.name": "cognify",
+        "user.id": generate_user_identifier()
+    })
 
-provider = TracerProvider(resource=resource)
-processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://wuklab-08.ucsd.edu:4318/v1/traces"))
-# to set up your own telemetry, you can add a new exporter to a custom endpoint
-provider.add_span_processor(processor)
+    provider = TracerProvider(resource=resource)
+    processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://wuklab-08.ucsd.edu:4318/v1/traces"))
+    # to set up your own telemetry, you can add a new exporter to a custom endpoint
+    provider.add_span_processor(processor)
 
-# Set global default tracer provider
-trace.set_tracer_provider(provider)
+    # Set global default tracer provider
+    trace.set_tracer_provider(provider)
 
-# Creates a tracer from the global tracer provider
-tracer = trace.get_tracer("cognify.tracer")
+    # Creates a tracer from the global tracer provider
+    tracer = trace.get_tracer("cognify.tracer")
+except:
+    pass
 
 def trace_cli_args(args):
     if is_telemetry_on():
