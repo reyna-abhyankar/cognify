@@ -51,7 +51,7 @@ def evaluate(
             aggregated_proposals={},
             trace_back=["evaluate_raw"],
         )
-        result = evaluator.get_score(mode="test", task=eval_task, frac=1, show_process=True)
+        result = evaluator.get_score(mode="test", task=eval_task, frac=1, show_process=True, show_tqdm_bar=False)
         print(f"----- Testing Raw Program -----")
         print(f"=========== Evaluation Results ===========")
         print(

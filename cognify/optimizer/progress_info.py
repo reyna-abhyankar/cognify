@@ -27,7 +27,7 @@ class ProgressInfo:
             leave=True,
             position=self.pbar_position,
             colour="green",
-            bar_format=r'{l_bar}{bar}| [{elapsed}<{remaining}, {rate_fmt}]'
+            bar_format=r'{l_bar}{bar}| [{elapsed}<{remaining}]'
         )
 
 
