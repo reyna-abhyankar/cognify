@@ -46,8 +46,6 @@ from cognify.optimizer.core.flow import (
 )
 from cognify.optimizer.core.glob_config import GlobalOptConfig
 from cognify.optimizer.checkpoint.ckpt import TrialLog, LogManager
-from cognify.optimizer.progress_info import pbar
-from termcolor import colored
 from cognify.optimizer.control_param import SelectedObjectives
 
 logger = logging.getLogger(__name__)
@@ -206,17 +204,16 @@ class OptLayer(OptLayerInterface):
         total_budget = self.top_down_info.opt_config.n_trials
         if total_budget > 0:
             # setup progress bar
-            LogManager().layer_stats[self._id].init_progress_bar(
-                level=self.hierarchy_level,
-                budget=self.top_down_info.opt_config.n_trials,
-                leave=self.hierarchy_level == 0,
-            )
+            if self.hierarchy_level == 0:
+                LogManager().layer_stats[self._id].init_progress_bar(
+                    level=self.hierarchy_level,
+                    budget=self.top_down_info.opt_config.n_trials,
+                    leave=self.hierarchy_level == 0,
+                )
             
             logger.debug(f"Start optimization {self.name} with {total_budget} trials")
             self._optimize()
             logger.debug(f"Optimization {self.name} finished")
-            
-            close_pbar(self._id)
             
             self._save_ckpt()
 
@@ -584,7 +581,8 @@ class OptLayer(OptLayerInterface):
         try:
             next_layer_evaluator = self.next_layer_factory()
             _result = next_layer_evaluator.evaluate(
-                next_level_info, 
+                next_level_info,
+                frac=self.opt_config.frac,
                 show_process=True, 
                 hierarchy_level=self.hierarchy_level + 1,
             )

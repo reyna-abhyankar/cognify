@@ -253,7 +253,7 @@ class LMFewShot(DynamicCogBase):
             module_name_paths={},
             aggregated_proposals={},
         )
-        eval_result = evaluator.evaluate(eval_task)
+        eval_result = evaluator.evaluate(eval_task, frac=0)
         params = []
         module_with_demo = set()
         for module_2_demo in eval_result.demos:

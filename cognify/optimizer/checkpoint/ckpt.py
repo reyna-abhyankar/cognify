@@ -8,10 +8,12 @@ import threading
 from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv, _report_exec_time_reduction
 from cognify.optimizer.core.glob_config import GlobalOptConfig
 from cognify.optimizer.core.flow import EvaluationResult
-from cognify.optimizer.checkpoint import pbar_utils
 from cognify.optimizer.evaluator import EvalTask
 
+
 from cognify.optimizer.control_param import SelectedObjectives
+from cognify.optimizer.progress_info import pbar
+from termcolor import colored
 
 logger = logging.getLogger(__name__)
 
@@ -126,14 +128,15 @@ class LayerStat:
             f"- {self.instance_id} - Trial id {id} result: score= {score:.2f}, cost@1000= ${price*1000:.3f}, exec_time= {result.reduced_exec_time:.2f} s"
         )
             
-        pbar_utils.add_opt_progress(
-            name=self.instance_id,
-            score=self.best_score,
-            price=self.lowest_cost,
-            exec_time=self.fastest_exec_time,
-            total_cost=self.opt_cost,
-            is_evaluator=False,
-        )
+        # pbar_utils.add_opt_progress(
+        #     name=self.instance_id,
+        #     score=self.best_score,
+        #     price=self.lowest_cost,
+        #     exec_time=self.fastest_exec_time,
+        #     total_cost=self.opt_cost,
+        #     is_evaluator=False,
+        # )
+        pbar.update_status(self.best_score, self.lowest_cost, self.fastest_exec_time, self.opt_cost)
     
     def load_existing_logs(self):
         with open(self.opt_log_path, "r") as f:
@@ -176,21 +179,29 @@ class LayerStat:
     ):
         initial = len(self.opt_logs)
         total = initial + budget
-        initial_desc = pbar_utils._gen_opt_bar_desc(
-            self.best_score,
-            self.lowest_cost,
-            self.fastest_exec_time,
-            self.opt_cost,
-            self.instance_id,
-            level + 1,
-        )
-        pbar_utils.add_pbar(
-            name=self.instance_id,
-            desc=initial_desc,
+        # initial_desc = pbar_utils._gen_opt_bar_desc(
+        #     self.best_score,
+        #     self.lowest_cost,
+        #     self.fastest_exec_time,
+        #     self.opt_cost,
+        #     self.instance_id,
+        #     level + 1,
+        # )
+        # pbar_utils.add_pbar(
+        #     name=self.instance_id,
+        #     desc=initial_desc,
+        #     total=total,
+        #     initial=initial,
+        #     leave=leave,
+        #     indent=level + 1,
+        # )
+        pbar.init_pbar(
             total=total,
             initial=initial,
-            leave=leave,
-            indent=level + 1,
+            initial_score=self.best_score,
+            initial_cost=self.lowest_cost,
+            initial_exec_time=self.fastest_exec_time,
+            opt_cost=self.opt_cost
         )
     
     def get_completed_logs(self) -> list[TrialLog]:

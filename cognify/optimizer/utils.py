@@ -95,7 +95,7 @@ def _report_cost_reduction(new, base):
     return _str
 
 def _report_exec_time_reduction(new, base):
-    x = _report_exec_time_reduction(new, base)
+    x = _report_exec_time_reduction_raw(new, base)
     _str = "  Execution time is {:.2f}x original".format(x)
     return _str
 

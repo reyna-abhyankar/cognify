@@ -24,12 +24,14 @@ def get_layer_evaluator_factory(
     next_layer_factory, 
     layer_config: LayerConfig,
     level: int,
-    is_leaf: bool
+    is_leaf: bool,
+    selected_objectives: SelectedObjectives
 ):
     def _factory():
         return OptLayer(
             name=layer_config.layer_name,
             opt_config=layer_config.opt_config,
+            objectives=selected_objectives,
             hierarchy_level=level,
             is_leaf=is_leaf,
             next_layer_factory=next_layer_factory,
@@ -89,7 +91,7 @@ class MultiLayerOptimizationDriver:
         for ri, layer_config in enumerate(reversed(self.layer_configs)):
             idx = len(self.layer_configs) - ri - 1
             next_layer_factory = self.opt_layer_factories[idx + 1]
-            current_layer_factory = get_layer_evaluator_factory(next_layer_factory, layer_config, idx, ri == 0)
+            current_layer_factory = get_layer_evaluator_factory(next_layer_factory, layer_config, idx, ri == 0, selected_objectives=self.objectives)
             self.opt_layer_factories[idx] = current_layer_factory
 
     def run(

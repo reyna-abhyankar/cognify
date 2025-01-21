@@ -381,8 +381,6 @@ class EvalTask:
                     q.put(
                         EvalTaskResult(
                             task_index,
-                            True,
-                            result, # this value is unused in `get_score`
                             score,
                             price,
                             exec_time,
