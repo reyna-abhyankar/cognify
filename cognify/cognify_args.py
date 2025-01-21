@@ -133,6 +133,32 @@ class InspectionArgs(CommonArgs):
             action="store_true",
             help="Dump descriptive optimization details of all Pareto frontiers.",
         )
+        
+@dataclasses.dataclass
+class RunArgs(CommonArgs):
+    input: str
+    select: str = "NoChange"
+    
+    @staticmethod
+    def add_cli_args(parser):
+        CommonArgs.add_cli_args(parser)
+        parser.add_argument(
+            "-s",
+            "--select",
+            type=str,
+            required=True,
+            default=EvaluationArgs.select,
+            help="Select one configuration by ID for evaluation. If evaluating the original workflow, use 'Original'.",
+            metavar="Optimization_x/Original",
+        )
+        parser.add_argument(
+            "-i",
+            "--input",
+            type=str,
+            required=True,
+            help="Input string for the workflow (currently only single input supported).",
+            metavar="input_string",
+        )
 
 
 def init_cognify_args(parser):
@@ -153,3 +179,8 @@ def init_cognify_args(parser):
         "inspect", formatter_class=argparse.RawTextHelpFormatter
     )
     InspectionArgs.add_cli_args(inspect_parser)
+
+    run_parser = subparsers.add_parser(
+        "run", formatter_class=argparse.RawTextHelpFormatter
+    )
+    RunArgs.add_cli_args(run_parser)

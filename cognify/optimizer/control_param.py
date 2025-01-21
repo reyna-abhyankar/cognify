@@ -2,8 +2,10 @@ import dataclasses
 import os
 import json
 import importlib
+from typing import Optional
 
 from cognify.optimizer.core.flow import LayerConfig
+from cognify.optimizer.analysis.domain import DomainManagerInterface
 
 @dataclasses.dataclass
 class ControlParameter:
@@ -13,6 +15,7 @@ class ControlParameter:
     train_down_sample: int = 0
     val_down_sample: int = 0
     evaluator_batch_size: int = 10
+    domain_manager: Optional[DomainManagerInterface] = None
 
     @classmethod
     def from_python_profile(cls, param_path):

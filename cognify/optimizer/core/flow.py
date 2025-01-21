@@ -30,6 +30,7 @@ class EvaluationResult:
         complete: bool,
         reduced_score: Optional[float] = None,
         reduced_price: Optional[float] = None,
+        reduced_exec_time: Optional[float] = None,
         demos: Optional[Sequence[TDemoInTrial]] = None,
         meta: Optional[dict] = None,
     ) -> None:
@@ -41,6 +42,7 @@ class EvaluationResult:
         self.complete = complete
         self.reduced_score = reduced_score
         self.reduced_price = reduced_price
+        self.reduced_exec_time = reduced_exec_time
         self.demos = demos
         self.meta = meta
 
@@ -50,7 +52,7 @@ class EvaluationResult:
             f"price: {self.reduced_price}, "
             f"{len(self.scores)} samples, "
             f"eval cost: {self.total_eval_cost}, "
-            f"avg exec time: {sum(self.exec_times) / len(self.exec_times)} s"
+            f"exec time: {self.reduced_exec_time} s"
         )
 
     def to_dict(self):
@@ -62,6 +64,7 @@ class EvaluationResult:
         stats["summary"] = {
             "reduced_score": self.reduced_score,
             "reduced_price": self.reduced_price,
+            "reduced_exec_time": self.reduced_exec_time,
             "total_eval_cost": self.total_eval_cost,
             "complete": self.complete,
         }
@@ -90,6 +93,7 @@ class EvaluationResult:
             complete=data["summary"]["complete"],
             reduced_score=data["summary"]["reduced_score"],
             reduced_price=data["summary"]["reduced_price"],
+            reduced_exec_time=data["summary"]["reduced_exec_time"],
         )
         
 class GeneralEvaluatorInterface(ABC):

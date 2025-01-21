@@ -26,7 +26,6 @@ def evaluation(task: Any, tentative_schema: Dict[str, Any], execution_history: D
         "revision": get_last_node_result(execution_history, "revision")
     }
     result = {}
-
     for evaluation_for, node_result in to_evaluate.items():
         predicted_sql = "--"
         evaluation_result = {}

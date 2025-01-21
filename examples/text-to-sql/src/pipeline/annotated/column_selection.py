@@ -1,10 +1,12 @@
 import os
 import sys
 
+sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..'))
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', '..', '..', '..', '..'))
 import cognify
 from langchain_core.output_parsers import JsonOutputParser
 from llm.parsers import ColumnSelectionOutput
+from annotated.common import use_simplifed
 
 system_prompt = \
 """You are an expert and very smart data analyst.
@@ -50,4 +52,8 @@ exec = cognify.Model(agent_name="column_selection",
              input_variables=[cognify.Input(name=input) for input in inputs], 
              output=cognify.OutputLabel(name=output_format, custom_output_format_instructions=output_format_instructions),
              lm_config=lm_config)
-runnable_exec = cognify.as_runnable(exec) | JsonOutputParser()
+
+if not use_simplifed:
+  runnable_exec = cognify.as_runnable(exec) | JsonOutputParser()
+else:
+  runnable_exec = None

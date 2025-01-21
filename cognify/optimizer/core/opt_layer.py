@@ -57,6 +57,11 @@ qc_identifier = "_#cognify_quality_constraint"
 def get_quality_constraint(trial: optuna.trial.FrozenTrial):
     return trial.user_attrs.get(qc_identifier, (1,))
 
+optimize_directions = [
+    "maximize", # quality
+    "minimize", # cost
+    "minimize", # exec time
+]
         
 class OptLayerInterface(GeneralEvaluatorInterface):
     name: str
@@ -135,7 +140,7 @@ class OptLayer(OptLayerInterface):
         target_modules: Iterable[str] = None,
     ):
         """
-        The optimization will always try to minimize the price and maximize the score
+        The optimization will always try to minimize the price and exec time and maximize the score
         Please make sure the evaluator is consistent with this.
 
         Args:
@@ -168,7 +173,6 @@ class OptLayer(OptLayerInterface):
         self.target_modules = (
             set(target_modules) if target_modules is not None else None
         )
-        self.opt_direction = "maximize"
         self.study: optuna.study.Study = None
         self._study_lock: threading.Lock = None
         self._best_score = None
@@ -226,10 +230,10 @@ class OptLayer(OptLayerInterface):
         
         for trial_log_id, trial_log in loaded_logs.items():
             assert trial_log.result.complete , f"Trial {trial_log_id} is not finished"
-            score, cost = trial_log.result.reduced_score, trial_log.result.reduced_price
+            score, cost, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.exec_times
             trial = optuna.trial.create_trial(
                 params=trial_log.params,
-                values=[score, cost],
+                values=[score, cost, exec_time],
                 distributions=self._search_space,
             )
             if GlobalOptConfig.quality_constraint is not None:
@@ -249,7 +253,7 @@ class OptLayer(OptLayerInterface):
                 ids=[],
                 scores=[],
                 prices=[],
-                exec_times=[],
+                exec_times=[float(0xDEADBEEF)],
                 total_eval_cost=opt_cost,
                 complete=LogManager().layer_stats[self._id].all_finished,
                 reduced_price=float(0xDEADBEEF),
@@ -262,10 +266,11 @@ class OptLayer(OptLayerInterface):
             scores.append(trial_log.result.reduced_score)
             prices.append(trial_log.result.reduced_price)
             # TODO: fix this
-            exec_times.append(sum(trial_log.result.exec_times) / len(trial_log.result.exec_times))
+            exec_times.append(trial_log.result.reduced_exec_time)
 
         reduced_score = max(scores)
         reduced_price = min(prices)
+        reduced_exec_time = min(exec_times)
         result = EvaluationResult(
             ids=inner_log_ids,
             scores=scores,
@@ -275,6 +280,7 @@ class OptLayer(OptLayerInterface):
             complete=True,
             reduced_score=reduced_score,
             reduced_price=reduced_price,
+            reduced_exec_time=reduced_exec_time,
         )
         return result
 
@@ -366,7 +372,7 @@ class OptLayer(OptLayerInterface):
             )
 
         new_study = optuna.create_study(
-            directions=["maximize", "minimize"],
+            directions=optimize_directions,
             sampler=sampler,
         )
 
@@ -537,10 +543,10 @@ class OptLayer(OptLayerInterface):
             return
 
         # update study if any dynamic params can evolve
-        score, price = eval_result.reduced_score, eval_result.reduced_price
+        score, price, exec_time = eval_result.reduced_score, eval_result.reduced_price, eval_result.reduced_exec_time
         with self._study_lock:
             self._add_constraint(score, trial)
-            frozen_trial = self.study.tell(trial, [score, price])
+            frozen_trial = self.study.tell(trial, [score, price, exec_time])
             is_evolved = False
             for params in self.params.values():
                 for param in params:

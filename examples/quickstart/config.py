@@ -40,7 +40,7 @@ def load_data_minor():
 from cognify.hub.search import default
 
 search_settings = default.create_search(
-    search_type='medium',
+    search_type='light',
     # n_trials=30,
-    opt_log_dir='test_new_driver',
+    opt_log_dir='test_with_perf',
 )

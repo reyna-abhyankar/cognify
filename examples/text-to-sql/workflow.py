@@ -25,10 +25,11 @@ from src.pipeline.workflow_builder import (
 
 from src.runner.run_manager import RunManager
 from src.runner.task import Task
+from src.utils import parse_arguments
 import cognify
 
 @cognify.register_workflow
-def worker(args, dataset):
+def worker_opt(args, dataset):
     """
     Main function to run the pipeline with the specified configuration.
     """
@@ -36,7 +37,7 @@ def worker(args, dataset):
     
     run_start_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     task = Task(dataset[0])
-    result_dir = f"opt_simplified/{task.db_id}/{task.question_id}/{run_start_time}"
+    result_dir = f"eval_origin/{task.db_id}/{task.question_id}/{run_start_time}"
     if not os.path.exists(result_dir):
         os.makedirs(result_dir, exist_ok=True)
 
@@ -48,4 +49,25 @@ def worker(args, dataset):
     run_manager.task_done(result, show_progress=False) 
 
     return {'stats': run_manager.statistics_manager.statistics.to_dict()}
+
+# @cognify.register_workflow
+# def worker_demo(query):
+#     """
+#     Main function to run the pipeline with the specified configuration.
+#     """
+#     args = parse_arguments()
+#     run_start_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+#     task = Task(query)
+#     result_dir = f"demo_one/{task.db_id}/{task.question_id}/{run_start_time}"
+#     if not os.path.exists(result_dir):
+#         os.makedirs(result_dir, exist_ok=True)
+
+#     run_manager = RunManager(args, result_dir)
+#     run_manager.initialize_tasks([query])
+#     task = run_manager.tasks[0]
+    
+#     result = run_manager.worker(task)
+#     run_manager.task_done(result, show_progress=False) 
+
+#     return {'stats': run_manager.statistics_manager.statistics.to_dict()}
 

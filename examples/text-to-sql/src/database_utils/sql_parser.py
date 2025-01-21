@@ -199,5 +199,5 @@ def get_sql_condition_literals(db_path: str, sql: str) -> Dict[str, Dict[str, Li
                                         used_entities[table_name][column_name].append(example)
         return used_entities
     except Exception as e:
-        logging.critical(f"Error in get_sql_condition_literals: {e}\nSQL {sql}\n")
+        logging.error(f"Error in get_sql_condition_literals: {e}\nSQL {sql}\n")
         raise e

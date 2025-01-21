@@ -55,8 +55,8 @@ def evaluate(
         print(f"----- Testing Raw Program -----")
         print(f"=========== Evaluation Results ===========")
         print(
-            "  Quality: {:.3f}, Cost per 1K invocation ($): {:.2f} $".format(
-                result.reduced_score, result.reduced_price * 1000
+            "  Quality: {:.3f}, Cost per 1K invocation: ${:.2f}, Avg exec time: {:.2f}s".format(
+                result.reduced_score, result.reduced_price * 1000, result.reduced_exec_time
             )
         )
         print("===========================================")
@@ -75,28 +75,25 @@ def evaluate(
         control_param.opt_history_log_dir, "dry_run_train.json"
     )
 
-    quality_constraint = None
     base_quality = None
     base_cost = None
+    base_exec_time = None
     if os.path.exists(dry_run_log_path):
         with open(dry_run_log_path, "r") as f:
             dry_run_result = EvaluationResult.from_dict(json.load(f))
         logger.info(f"Loading existing dry run result at {dry_run_log_path}")
-        if control_param.quality_constraint:
-            quality_constraint = (
-                control_param.quality_constraint * dry_run_result.reduced_score
-            )
-            base_quality = dry_run_result.reduced_score
+        base_quality = dry_run_result.reduced_score
         base_cost = dry_run_result.reduced_price
+        base_exec_time = dry_run_result.reduced_exec_time
     else:
         logger.warning(
-            f"Quality constraint is set but no dry run result found at {dry_run_log_path}, will ignore constraint"
+            f"no dry run result found at {dry_run_log_path}"
         )
 
     opt_driver = driver.MultiLayerOptimizationDriver(
         layer_configs=control_param.opt_layer_configs,
         opt_log_dir=control_param.opt_history_log_dir,
-        quality_constraint=quality_constraint,
+        quality_constraint=None,
         base_quality=base_quality,
         base_cost=base_cost,
     )

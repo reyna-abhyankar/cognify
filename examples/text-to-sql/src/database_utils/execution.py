@@ -16,6 +16,7 @@ def _clean_sql(sql: str) -> str:
     """
     return sql.replace('\n', ' ').replace('"', "'").strip("`.")
 
+
 def execute_sql(db_path: str, sql: str, fetch: Union[str, int] = "all") -> Any:
     """
     Executes an SQL query on a database and fetches results.
@@ -50,6 +51,7 @@ def execute_sql(db_path: str, sql: str, fetch: Union[str, int] = "all") -> Any:
         logging.error(f"Error in execute_sql: {e}\nSQL: {sql}")
         raise e
 
+cnt = 0
 def _compare_sqls_outcomes(db_path: str, predicted_sql: str, ground_truth_sql: str) -> int:
     """
     Compares the outcomes of two SQL queries to check for equivalence.
@@ -65,12 +67,18 @@ def _compare_sqls_outcomes(db_path: str, predicted_sql: str, ground_truth_sql: s
     Raises:
         Exception: If an error occurs during SQL execution.
     """
+    global cnt
     try:
+        # pred_sql =  "SELECT T2.City FROM schools T2 JOIN frpm T1 ON T1.CDSCode = T2.CDSCode WHERE T1.`NSLP Provision Status` = 'Lunch Provision 2' AND T1.`County Name` = 'Merced' AND T2.EILCode = 'HS' AND T2.GSserved = '9-12' ORDER BY T2.City LIMIT 1; "
         predicted_res = execute_sql(db_path, predicted_sql)
         ground_truth_res = execute_sql(db_path, ground_truth_sql)
+        # if cnt == 1:
+        #     print(f"groud_truth_res: {ground_truth_res[0][0]}")
+        #     print(f"predicted_res: {predicted_res[0][0]}")
+        # cnt += 1
         return int(set(predicted_res) == set(ground_truth_res))
     except Exception as e:
-        logging.critical(f"Error comparing SQL outcomes: {e}")
+        logging.error(f"Error comparing SQL outcomes: {e}")
         raise e
 
 def compare_sqls(db_path: str, predicted_sql: str, ground_truth_sql: str, meta_time_out: int = 30) -> Dict[str, Union[int, str]]:

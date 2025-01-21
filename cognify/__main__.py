@@ -8,6 +8,7 @@ from cognify.cognify_args import (
     OptimizationArgs,
     EvaluationArgs,
     InspectionArgs,
+    RunArgs,
 )
 from cognify.optimizer.plugin import capture_module_from_fs
 from cognify.optimizer.registry import get_registered_data_loader
@@ -15,6 +16,7 @@ from cognify.optimizer.control_param import ControlParameter
 from cognify.run.optimize import optimize
 from cognify.run.evaluate import evaluate
 from cognify.run.inspect import inspect
+from cognify.run.run_query import run
 from cognify._logging import _configure_logger
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,8 @@ def from_cognify_args(args):
         return EvaluationArgs.from_cli_args(args)
     elif args.mode == "inspect":
         return InspectionArgs.from_cli_args(args)
+    elif args.mode == "run":
+        return RunArgs.from_cli_args(args)
     else:
         raise ValueError(f"Unknown mode: {args.mode}")
 
@@ -93,6 +97,14 @@ def inspect_routine(inspect_args: InspectionArgs):
         dump_frontier_details=inspect_args.dump_frontier_details,
     )
 
+def run_routine(run_args: RunArgs):
+    _, control_param = parse_pipeline_config_file(run_args.config, load_data=False)
+    run(
+        config_id=run_args.select,
+        workflow=run_args.workflow,
+        input=run_args.input,
+        control_param=control_param
+    )
 
 def main():
     # debugpy.listen(5678)
@@ -110,8 +122,12 @@ def main():
         optimize_routine(cognify_args)
     elif raw_args.mode == "evaluate":
         evaluate_routine(cognify_args)
-    else:
+    elif raw_args.mode == "inspect":
         inspect_routine(cognify_args)
+    elif raw_args.mode == "run":
+        run_routine(cognify_args)
+    else:
+        raise ValueError(f"Unknown mode: {raw_args.mode}")
     return
 
 

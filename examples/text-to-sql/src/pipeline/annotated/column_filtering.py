@@ -1,11 +1,13 @@
 import os
 import sys
 
+sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..'))
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', '..', '..', '..', '..'))
 import cognify
 from llm.parsers import ColumnFilteringOutput
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import chain
+from annotated.common import use_simplifed
 
 system_prompt = \
 """You are a Careful data scientist.
@@ -315,7 +317,10 @@ exec = cognify.Model(agent_name='column_filtering',
                                 custom_output_format_instructions="Please response with Yes or No (no other text should be included)."),
             lm_config=lm_config)
 # exec.add_demos(demos)
-raw_runnable_exec = cognify.as_runnable(exec) | StrOutputParser()
+if not use_simplifed:
+    raw_runnable_exec = cognify.as_runnable(exec) | StrOutputParser()
+else:
+    raw_runnable_exec = None
 
 @chain
 def runnable_exec(inputs):

@@ -29,6 +29,7 @@ _pbar_pool: dict[str, tuple[int, int, tqdm]] = {}
 def _gen_opt_bar_desc(
     best_score, 
     lowest_price,
+    fastest_time,
     opt_cost,
     name,
     indent,
@@ -37,18 +38,20 @@ def _gen_opt_bar_desc(
     prefix = "---" * indent + ">"
     formatted_best_score = f"{best_score:.2f}" if best_score is not None else "N/A"
     formatted_lowest_price = f"${lowest_price*1000:.2f}" if lowest_price is not None else "N/A"
-    return f"{prefix} {name} | (best score: {formatted_best_score}, lowest cost@1000: {formatted_lowest_price}) | Total Optimization Cost: ${opt_cost:.2f}"
+    formatted_fastest_time = f"{fastest_time:.2f} s" if fastest_time is not None else "N/A"
+    return f"{prefix} {name} | (best score: {formatted_best_score}, lowest cost@1000: {formatted_lowest_price}, fastest workflow: avg {formatted_fastest_time}) | Total Optimization Cost: ${opt_cost:.2f}"
 
 def _gen_eval_bar_desc(
     score, 
     price,
+    exec_time,
     eval_cost,
     name,
     indent,
     /,
 ):
     prefix = "---" * indent + ">"
-    return f"{prefix} {name} | (avg score: {score:.2f}, avg cost@1000: ${price*1000:.2f}) | Total Evaluation Cost: ${eval_cost:.2f}"
+    return f"{prefix} {name} | (avg score: {score:.2f}, avg cost@1000: ${price*1000:.2f}, avg exec: {exec_time:.2f} s) | Total Evaluation Cost: ${eval_cost:.2f}"
 
 def add_pbar(
     name: str, 
@@ -82,11 +85,12 @@ def add_opt_progress(
     name: str,
     score: float,
     price: float,
+    exec_time: float,
     total_cost: float,
     is_evaluator: bool,
 ):
     indent, _, pbar = _pbar_pool[name]
     _gen_desc = _gen_eval_bar_desc if is_evaluator else _gen_opt_bar_desc
-    desc = _gen_desc(score, price, total_cost, name, indent)
+    desc = _gen_desc(score, price, exec_time, total_cost, name, indent)
     pbar.set_description(desc)
     pbar.update(1)

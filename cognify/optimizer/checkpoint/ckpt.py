@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import threading
 
-from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv
+from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv, _report_exec_time_reduction
 from cognify.optimizer.core.glob_config import GlobalOptConfig
 from cognify.optimizer.core.flow import EvaluationResult
 from cognify.optimizer.checkpoint import pbar_utils
@@ -60,9 +60,9 @@ def get_pareto_front(candidates: list[TrialLog]) -> list[TrialLog]:
         return []
     score_cost_list = []
     for trial_log in candidates:
-        score_cost_list.append((trial_log.result.reduced_score, trial_log.result.reduced_price))
+        score_cost_list.append((trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.reduced_exec_time))
 
-    vectors = np.array([[-score, price] for score, price in score_cost_list])
+    vectors = np.array([[-score, price, perf] for score, price, perf in score_cost_list])
     is_efficient = np.ones(vectors.shape[0], dtype=bool)
     for i, v in enumerate(vectors):
         if is_efficient[i]:
@@ -90,6 +90,7 @@ class LayerStat:
         self.opt_logs: dict[str, TrialLog] = {}
         self.best_score = None
         self.lowest_cost = None
+        self.fastest_exec_time = None
         self.opt_cost = 0.0
         self.opt_log_path = opt_log_path
         self.is_leaf = is_leaf
@@ -116,15 +117,18 @@ class LayerStat:
             self.best_score = score
         if self.lowest_cost is None or price < self.lowest_cost:
             self.lowest_cost = price
+        if self.fastest_exec_time is None or result.reduced_exec_time < self.fastest_exec_time:
+            self.fastest_exec_time = result.reduced_exec_time
 
         logger.debug(
-            f"- {self.instance_id} - Trial id {id} result: score= {score:.2f}, cost@1000= {price*1000:.3f}"
+            f"- {self.instance_id} - Trial id {id} result: score= {score:.2f}, cost@1000= ${price*1000:.3f}, exec_time= {result.reduced_exec_time:.2f} s"
         )
             
         pbar_utils.add_opt_progress(
             name=self.instance_id,
             score=self.best_score,
             price=self.lowest_cost,
+            exec_time=self.fastest_exec_time,
             total_cost=self.opt_cost,
             is_evaluator=False,
         )
@@ -141,6 +145,7 @@ class LayerStat:
         if cancidates:
             self.best_score = max([log.result.reduced_score for log in cancidates])
             self.lowest_cost = min([log.result.reduced_price for log in cancidates])
+            self.fastest_exec_time = min([log.result.reduced_exec_time for log in cancidates])
     
     def save_opt_logs(self):
         opt_logs_json_obj = {}
@@ -172,6 +177,7 @@ class LayerStat:
         initial_desc = pbar_utils._gen_opt_bar_desc(
             self.best_score,
             self.lowest_cost,
+            self.fastest_exec_time,
             self.opt_cost,
             self.instance_id,
             level + 1,
@@ -214,10 +220,11 @@ class LogManager:
             cls._instance._init(*args, **kwargs)
         return cls._instance
     
-    def _init(self, base_score, base_cost):
+    def _init(self, base_score, base_cost, base_exec_time):
         self.layer_stats: dict[str, LayerStat] = {}
         self._glob_best_score = base_score
         self._glob_lowest_cost = base_cost
+        self._glob_fastest_exec_time = base_exec_time
         self._glob_lock = threading.Lock()
     
     def register_layer(
@@ -241,14 +248,17 @@ class LogManager:
         with self._glob_lock:
             self._update_glob_best_score(result.reduced_score)
             self._update_glob_lowest_cost(result.reduced_price)
+            self._update_glob_fastest_exec_time(result.reduced_exec_time)
     
     def load_existing_logs(self, layer_instance: str):
         self.layer_stats[layer_instance].load_existing_logs()
         # update global best score and lowest cost
         local_best_score = self.layer_stats[layer_instance].best_score
         local_lowest_cost = self.layer_stats[layer_instance].lowest_cost
+        fast_exec_time = self.layer_stats[layer_instance].fastest_exec_time
         self._update_glob_best_score(local_best_score)
         self._update_glob_lowest_cost(local_lowest_cost)
+        self._update_glob_fastest_exec_time(fast_exec_time)
     
     def get_global_summary(self, verbose: bool):
         candidates = []
@@ -262,12 +272,15 @@ class LogManager:
             for i, trial_log in enumerate(pareto_frontier):
                 print("--------------------------------------------------------")
                 print("Pareto_{}".format(i + 1))
-                score, price = trial_log.result.reduced_score, trial_log.result.reduced_price
+                score, price, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.reduced_exec_time
                 # logger.info("  Params: {}".format(trial_log.params))
                 if GlobalOptConfig.base_quality is not None:
-                    print("  Quality improves by {:.0f}%".format(_report_quality_impv(score, GlobalOptConfig.base_quality)))
+                    print(_report_quality_impv(score, GlobalOptConfig.base_quality))
                 if GlobalOptConfig.base_price is not None:
-                    print("  Cost is {:.2f}x original".format(_report_cost_reduction(price, GlobalOptConfig.base_price)))
+                    print(_report_cost_reduction(price, GlobalOptConfig.base_price))
+                if GlobalOptConfig.base_exec_time is not None:
+                    print(_report_exec_time_reduction(exec_time, GlobalOptConfig.base_exec_time))
+                # print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, avg exec time: {:.2f} s".format(score, price * 1000, exec_time))
                 print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}".format(score, price * 1000))
                 # print("  Applied at: {}".format(trial_log.id))
                 # logger.info("  config saved at: {}".format(log_path))
@@ -300,4 +313,10 @@ class LogManager:
             return
         if self._glob_lowest_cost is None or cost < self._glob_lowest_cost:
             self._glob_lowest_cost = cost
+    
+    def _update_glob_fastest_exec_time(self, exec_time):
+        if exec_time is None:
+            return
+        if self._glob_fastest_exec_time is None or exec_time < self._glob_fastest_exec_time:
+            self._glob_fastest_exec_time = exec_time
     

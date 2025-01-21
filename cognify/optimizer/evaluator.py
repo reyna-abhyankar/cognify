@@ -3,6 +3,7 @@ import os
 import sys
 import json
 from typing import Union, Optional, Tuple, Callable, Iterable, Literal, Sequence
+import signal
 import time
 import copy
 import logging
@@ -11,6 +12,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 import multiprocessing as mp
 import textwrap
+import queue
 import traceback
 from cognify.optimizer.utils import _cognify_tqdm as tqdm
 from cognify.optimizer.registry import get_registered_opt_score_fn
@@ -36,7 +38,8 @@ class TaskStatus(Enum):
     INTERRUPTED = 2
     FAILED = 3
 
-
+def timeout_handler(signum, frame):
+    raise TimeoutError("Task timed out")
 
 class EvalFn:
     def __init__(
@@ -217,7 +220,11 @@ class EvalTask:
         # directly raise interrupt signal
         _stay_alert()
         
+        # signal.signal(signal.SIGALRM, timeout_handler)
+        # signal.alarm(60)
+
         try:
+            # print(f"Task {task_index} start")
             if input is not None and not isinstance(input, dict):
                 raise ValueError(f"Input from data loader should be a dict, got {input}")
             if label is not None and not isinstance(label, dict):
@@ -245,6 +252,12 @@ class EvalTask:
             # merge input/result/label to a single dict
             state = {**(input or {}), **(result or {}), **(label or {})}
             score = evaluator.score(state)
+            # print(f"Task {task_index} finished success")
+            # signal.alarm(0)  # Cancel the alarm after success
+        except TimeoutError:
+            # print(f"Task {task_index} timed out")
+            end_time = time.time()  # this isn't accurate if the process is interrupted
+            status = TaskStatus.FAILED
         except KeyboardInterrupt:
             status = TaskStatus.INTERRUPTED
         except Exception as e:
@@ -255,25 +268,32 @@ class EvalTask:
             status = TaskStatus.FAILED
         finally:
             # get price and demo of running the program
-            if status == TaskStatus.SUCCESS:
-                for lm in Module.all_of_type(module_pool.values(), Model):
-                    price += lm.get_total_cost()
-                    demo = lm.get_last_step_as_demo()
-                    if demo is not None:
-                        lm_to_demo[lm.name] = demo
-
-            q.put(
-                (
-                    task_index,
-                    status != TaskStatus.INTERRUPTED,
-                    result, # this value is unused in `get_score`
-                    score,
-                    price,
-                    lm_to_demo,
-                    end_time - start_time,
+            # signal.alarm(0)  # Cancel the alarm after success
+            try:
+                if status == TaskStatus.SUCCESS:
+                    for lm in Module.all_of_type(module_pool.values(), Model):
+                        price += lm.get_total_cost()
+                        demo = lm.get_last_step_as_demo()
+                        if demo is not None:
+                            lm_to_demo[lm.name] = demo
+                # print(f"Task {task_index} put with {status}")
+                q.put(
+                    (
+                        task_index,
+                        status != TaskStatus.INTERRUPTED,
+                        result, # this value is unused in `get_score`
+                        score,
+                        price,
+                        lm_to_demo,
+                        end_time - start_time,
+                    ),
+                    block=False,
                 )
-            )
-            sema.release()
+                # print(f"Task {task_index} send result back")
+            except Exception as e:
+                logger.error(f"Error sending result back for task {task_index}: {e}")
+            finally:
+                sema.release()
 
     def show_opt_trace(self) -> str:
         trace_lines = []
@@ -390,15 +410,18 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         # Task queue to limit the number of parallel tasks
         # avoid worker pool to avoid reusing the same process
         all_workers = []
-        sema = mp.Semaphore(n_parallel)
+        sema = mp.BoundedSemaphore(n_parallel)
         result_q = mp.Queue()
 
-        total_score, total_cost, n_success = 0.0, 0.0, 0
-        bar_name = "Eval in " + ".".join(task.trace_back)
+        total_score, total_cost, total_exec_time, n_success = 0.0, 0.0, 0.0, 0
+        if mode == "test":
+            bar_name = "Eval in Test mode"
+        else:
+            bar_name = "Eval in " + ".".join(task.trace_back)
         
         pbar_utils.add_pbar(
             name=bar_name,
-            desc=pbar_utils._gen_eval_bar_desc(0, 0, 0, bar_name, hierarchy_level + 1),
+            desc=pbar_utils._gen_eval_bar_desc(0, 0, 0, 0, bar_name, hierarchy_level + 1),
             total=len(indices),
             initial=0,
             leave=keep_bar,
@@ -406,15 +429,17 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         )
         
         def update_pbar(eval_result):
-            nonlocal total_score, total_cost, n_success
+            nonlocal total_score, total_cost, total_exec_time, n_success
             n_success += 1
             score, price = eval_result[3], eval_result[4]
             total_score += score
             total_cost += price
+            total_exec_time += eval_result[6]
             pbar_utils.add_opt_progress(
                 name=bar_name,
                 score=total_score / n_success,
                 price=total_cost / n_success,
+                exec_time=total_exec_time / n_success,
                 total_cost=total_cost,
                 is_evaluator=True,
             )
@@ -426,17 +451,23 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
                 break
 
             # check for result updates
-            while not result_q.empty():
-                eval_result = result_q.get()
-                n_visited += 1
-                if not eval_result[1]:
-                    continue
-                results.append(eval_result)
-                if show_process:
-                    update_pbar(eval_result)
+            while True:
+                try:
+                    # qsize = result_q.qsize()
+                    # print(f"qsize = {qsize}")
+                    eval_result = result_q.get(block=False)
+                    n_visited += 1
+                    if not eval_result[1]:
+                        continue
+                    results.append(eval_result)
+                    if show_process:
+                        update_pbar(eval_result)
+                except queue.Empty:
+                    break
 
             input, label = data[pair_idx]
             sema.acquire()
+            # print(f"Task {task_index} scheduled")
             worker = mp.Process(
                 target=task.evaluate_program,
                 args=(self._evaluator, input, label, task_index, sema, result_q),
@@ -444,6 +475,7 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             worker.start()
             all_workers.append(worker)
 
+        # print(f"waiting for {len(all_workers) - n_visited} workers to finish")
         for i in range(len(all_workers) - n_visited):
             eval_result = result_q.get()
             if not eval_result[1]:
@@ -484,6 +516,7 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             exec_times.append(exec_time)
         reduced_score = self.score_reducer(scores)
         reduced_price = self.price_reducer(prices)
+        reduced_exec_time = sum(exec_times) / len(exec_times)
         return EvaluationResult(
             ids=[f"{mode}_{i}" for i in data_ids],
             scores=scores,
@@ -493,6 +526,7 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             complete=len(results) == len(indices),
             reduced_score=reduced_score,
             reduced_price=reduced_price,
+            reduced_exec_time=reduced_exec_time,
             demos=demos,
         )
 

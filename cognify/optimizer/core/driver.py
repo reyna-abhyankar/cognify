@@ -12,7 +12,7 @@ from cognify.optimizer.evaluator import (
 from cognify.optimizer.core.flow import TopDownInformation, LayerConfig
 from cognify.optimizer.core.opt_layer import OptLayer, GlobalOptConfig
 from cognify.optimizer.checkpoint.ckpt import LogManager, TrialLog
-from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv
+from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv, _report_exec_time_reduction
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,7 @@ class MultiLayerOptimizationDriver:
         quality_constraint: float = None,
         base_quality: float = None,
         base_cost: float = None,
+        base_exec_time: float = None,
     ):
         """Driver for multi-layer optimization
 
@@ -56,7 +57,8 @@ class MultiLayerOptimizationDriver:
         GlobalOptConfig.quality_constraint = quality_constraint
         GlobalOptConfig.base_quality = base_quality
         GlobalOptConfig.base_price = base_cost
-        _log_mng = LogManager(base_quality, base_cost)
+        GlobalOptConfig.base_exec_time = base_exec_time
+        _log_mng = LogManager(base_quality, base_cost, base_exec_time)
 
         # initialize optimization layers
         self.opt_layer_factories: list[Callable] = [None] * (len(layer_configs) + 1)
@@ -74,7 +76,6 @@ class MultiLayerOptimizationDriver:
             layer_config.opt_config.opt_log_path = None
             layer_config.opt_config.param_save_path = None
             
-
     def build_tiered_optimization(self, evaluator: EvaluatorPlugin):
         """Build tiered optimization from bottom to top"""
         self.opt_layer_factories[-1] = lambda: evaluator
@@ -168,10 +169,12 @@ class MultiLayerOptimizationDriver:
         
         print(f"=========== Evaluation Results ===========") 
         if GlobalOptConfig.base_quality is not None:
-            print("  Quality improves by {:.0f}%".format(_report_quality_impv(eval_result.reduced_score, GlobalOptConfig.base_quality)))
+            print(_report_quality_impv(eval_result.reduced_score, GlobalOptConfig.base_quality))
         if GlobalOptConfig.base_price is not None:
-            print("  Cost is {:.2f}x original".format(_report_cost_reduction(eval_result.reduced_price, GlobalOptConfig.base_price)))
-        print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}".format(eval_result.reduced_score, eval_result.reduced_price * 1000))
+            print(_report_cost_reduction(eval_result.reduced_price, GlobalOptConfig.base_price))
+        if GlobalOptConfig.base_exec_time is not None:
+            print(_report_exec_time_reduction(eval_result.reduced_exec_time, GlobalOptConfig.base_exec_time))
+        print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, Avg exec time: {:.2f} s".format(eval_result.reduced_score, eval_result.reduced_price * 1000, eval_result.reduced_exec_time))
         print("===========================================")
 
         return eval_result
@@ -180,9 +183,10 @@ class MultiLayerOptimizationDriver:
         self,
         config_id: str,
     ):
+        self.load_from_file()
         trial_id = self._extract_trial_id(config_id)
         log = LogManager().get_log_by_id(trial_id)
-        eval_task = EvalTask.from_dict(log.eval_task)
+        eval_task = EvalTask.from_dict(log.eval_task_dict)
         schema, old_name_2_new_module = eval_task.load_and_transform()
         return schema, old_name_2_new_module
 
@@ -200,16 +204,19 @@ class MultiLayerOptimizationDriver:
             os.makedirs(param_log_dir, exist_ok=True)
         for i, trial_log in enumerate(frontier):
             trial_log: TrialLog
-            score, price = trial_log.result.reduced_score, trial_log.result.reduced_price
+            score, price, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.reduced_exec_time
             dump_path = os.path.join(param_log_dir, f"Pareto_{i+1}.cog")
             details = f"Trial - {trial_log.id}\n"
             log_path = finished_opt_logs[trial_log.id][1]
             details += f"Log at: {log_path}\n"
             if GlobalOptConfig.base_quality is not None:
-                details += ("  Quality improves by {:.0f}%\n".format(_report_quality_impv(score, GlobalOptConfig.base_quality)))
+                details += _report_quality_impv(score, GlobalOptConfig.base_quality)
             if GlobalOptConfig.base_price is not None:
-                details += ("  Cost is {:.2f}x original, ".format(_report_cost_reduction(price, GlobalOptConfig.base_price)))
-            details += f"Quality: {score:.3f}, Cost per 1K invocation ($): {price * 1000:.2f} $\n"
+                details += _report_cost_reduction(price, GlobalOptConfig.base_price)
+            if GlobalOptConfig.base_exec_time is not None:
+                details += _report_exec_time_reduction(exec_time, GlobalOptConfig.base_exec_time)
+                
+            details += f"Quality: {score:.3f}, Cost per 1K invocation: ${price * 1000:.2f}, Avg exec time: {exec_time:.2f} s\n"
             trans = trial_log.show_transformation()
             details += trans
             with open(dump_path, "w") as f:
