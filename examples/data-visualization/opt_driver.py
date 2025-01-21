@@ -69,7 +69,7 @@ def raw_test(data):
         module_name_paths={},
         aggregated_proposals={},
     )
-    result = evaluator.get_score('test', eval_task, show_process=True)
+    result = evaluator.get_score('test', eval_task, show_process=True, show_tqdm_bar=False)
     print(result)
     meta = []
     with open('/mnt/ssd4/lm_compiler/examples/IR_matplot_agent/test_data_mini_query_refine_cot_new_prmopt/raw_test_result.log', 'w+') as f:

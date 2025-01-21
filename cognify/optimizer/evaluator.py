@@ -488,8 +488,10 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         task: EvalTask,
         frac: float,
         show_process: bool,
+        show_tqdm_bar: bool = False,
         hierarchy_level: int = 0,
         keep_bar: bool = False,
+        is_dry_run: bool = False,
     ):
         logger.debug(f"sys_path = {sys.path}")
 
@@ -507,7 +509,11 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
 
         results = []
         n_visited = 0
-        for task_index, pair_idx in enumerate(indices):
+        for task_index, pair_idx in tqdm(enumerate(indices), 
+                                         total=len(indices), 
+                                         colour='green',
+                                         leave=False,
+                                         disable=not show_tqdm_bar):
             if _should_exit():
                 break
 
@@ -530,6 +536,8 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             worker.start()
             all_workers.append(worker)
 
+        if is_dry_run:
+            print("Optimizing workflow...")
         for i in range(len(all_workers) - n_visited):
             eval_task_result: EvalTaskResult = result_q.get()
             if not eval_task_result.finished:
@@ -642,7 +650,7 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
                     json.load(open(dry_run_path, "r"))
                 )
             else:
-                eval_result = self.get_score(mode, task, frac=1, show_process=True)
+                eval_result = self.get_score(mode, task, frac=1, show_process=True, show_tqdm_bar=True)
                 with open(dry_run_path, "w+") as f:
                     json.dump(eval_result.to_dict(), f, indent=4)
             # if user provide a custom prob convertor
