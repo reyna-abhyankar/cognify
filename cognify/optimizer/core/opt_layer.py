@@ -46,7 +46,9 @@ from cognify.optimizer.core.flow import (
 )
 from cognify.optimizer.core.glob_config import GlobalOptConfig
 from cognify.optimizer.checkpoint.ckpt import TrialLog, LogManager
-from cognify.optimizer.checkpoint.pbar_utils import close_pbar
+from cognify.optimizer.progress_info import pbar
+from termcolor import colored
+from cognify.optimizer.control_param import SelectedObjectives
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +133,7 @@ class OptLayer(OptLayerInterface):
     def __init__(
         self,
         name: str,
+        objectives: SelectedObjectives,
         opt_config: OptConfig,
         hierarchy_level: int,
         is_leaf: bool,
@@ -161,6 +164,7 @@ class OptLayer(OptLayerInterface):
                 currently will overwrite the same file
         """
         self.name = name
+        self.objectives = objectives
         self.opt_config = opt_config
         
         self.dedicate_params = dedicate_params
@@ -216,7 +220,7 @@ class OptLayer(OptLayerInterface):
             
             self._save_ckpt()
 
-        pareto_frontier = LogManager().layer_stats[self._id].get_opt_summary()
+        pareto_frontier = LogManager().layer_stats[self._id].get_opt_summary(self.objectives)
         return self._get_layer_feedback(pareto_frontier)
         
     def _save_ckpt(self):
@@ -233,7 +237,7 @@ class OptLayer(OptLayerInterface):
             score, cost, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.exec_times
             trial = optuna.trial.create_trial(
                 params=trial_log.params,
-                values=[score, cost, exec_time],
+                values=self.objectives.select_from(score, cost, exec_time),
                 distributions=self._search_space,
             )
             if GlobalOptConfig.quality_constraint is not None:
@@ -372,7 +376,7 @@ class OptLayer(OptLayerInterface):
             )
 
         new_study = optuna.create_study(
-            directions=optimize_directions,
+            directions=self.objectives.get_optimization_directions(),
             sampler=sampler,
         )
 
@@ -546,7 +550,7 @@ class OptLayer(OptLayerInterface):
         score, price, exec_time = eval_result.reduced_score, eval_result.reduced_price, eval_result.reduced_exec_time
         with self._study_lock:
             self._add_constraint(score, trial)
-            frozen_trial = self.study.tell(trial, [score, price, exec_time])
+            frozen_trial = self.study.tell(trial, self.objectives.select_from(score, price, exec_time))
             is_evolved = False
             for params in self.params.values():
                 for param in params:
@@ -629,7 +633,7 @@ class OptLayer(OptLayerInterface):
         
         self.optimize(tdi)
         
-        opt_cost, pareto_frontier, finished_opt_logs = LogManager().get_global_summary(verbose=True)
+        opt_cost, pareto_frontier, finished_opt_logs = LogManager().get_global_summary(verbose=True, selected_objectives=self.objectives)
         assert LogManager().layer_stats[self._id].opt_cost == opt_cost, f"Inconsistent opt cost {LogManager().layer_stats[self._id].opt_cost} vs {opt_cost}"
         return opt_cost, pareto_frontier, finished_opt_logs
     

@@ -1,3 +1,5 @@
+print("Loading workflow...")
+
 from .llm import (
     Model,
     StructuredModel,
@@ -13,7 +15,8 @@ from .frontends.langchain.connector import RunnableModel, as_runnable
 
 from cognify import llm, optimizer
 
-from cognify.run.evaluate import evaluate, load_workflow
+from cognify.run.evaluate import evaluate
+from cognify.run.run import run, load_workflow
 from cognify.run.optimize import optimize
 from cognify.run.inspect import inspect
 from cognify.optimizer import (
@@ -37,6 +40,7 @@ __all__ = [
     "load_workflow",
     "optimize",
     "inspect",
+    "run",
     "EvaluationResult",
     "create_default_search",
     "register_workflow",

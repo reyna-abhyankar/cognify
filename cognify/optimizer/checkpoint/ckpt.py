@@ -11,6 +11,8 @@ from cognify.optimizer.core.flow import EvaluationResult
 from cognify.optimizer.checkpoint import pbar_utils
 from cognify.optimizer.evaluator import EvalTask
 
+from cognify.optimizer.control_param import SelectedObjectives
+
 logger = logging.getLogger(__name__)
 
 class TrialLog:
@@ -51,7 +53,7 @@ class TrialLog:
         eval_task = EvalTask.from_dict(self.eval_task_dict)
         return eval_task.show_opt_trace()
 
-def get_pareto_front(candidates: list[TrialLog]) -> list[TrialLog]:
+def get_pareto_front(candidates: list[TrialLog], selected_objectives: SelectedObjectives) -> list[TrialLog]:
     """Find the pareto-efficient points
 
     NOTE: Filter the candidate list before calling this function
@@ -62,7 +64,7 @@ def get_pareto_front(candidates: list[TrialLog]) -> list[TrialLog]:
     for trial_log in candidates:
         score_cost_list.append((trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.reduced_exec_time))
 
-    vectors = np.array([[-score, price, perf] for score, price, perf in score_cost_list])
+    vectors = np.array([selected_objectives.select_from(-score, price, perf) for score, price, perf in score_cost_list])
     is_efficient = np.ones(vectors.shape[0], dtype=bool)
     for i, v in enumerate(vectors):
         if is_efficient[i]:
@@ -157,9 +159,9 @@ class LayerStat:
             return
         json.dump(opt_logs_json_obj, open(self.opt_log_path, "w+"), indent=4)
     
-    def get_opt_summary(self):
+    def get_opt_summary(self, selected_objectives: SelectedObjectives):
         candidates = self.get_all_candidates()
-        pareto_frontier = get_pareto_front(candidates)
+        pareto_frontier = get_pareto_front(candidates, selected_objectives)
         return pareto_frontier
 
     @property
@@ -260,18 +262,25 @@ class LogManager:
         self._update_glob_lowest_cost(local_lowest_cost)
         self._update_glob_fastest_exec_time(fast_exec_time)
     
-    def get_global_summary(self, verbose: bool):
+    def get_global_summary(self, verbose: bool, selected_objectives: SelectedObjectives):
         candidates = []
         for layer_instance, layer_stat in self.layer_stats.items():
             if layer_stat.is_leaf:
                 candidates.extend(layer_stat.get_all_candidates())
-        pareto_frontier = get_pareto_front(candidates)
+        pareto_frontier = get_pareto_front(candidates, selected_objectives)
         if verbose:
             print(f"================ Optimization Results =================") 
-            print(f"Num Pareto Frontier: {len(pareto_frontier)}")
+            print(f"Optimized for: {str(selected_objectives)}")
+            
+            if len(pareto_frontier) == 0:
+                print("Based on current optimization parameters, the best solution is the original workflow.")
+                print("We recommend increasing the number of trials or relaxing constraints.")
+            else:
+                print(f"Number of Optimized Workflows Generated: {len(pareto_frontier)}")
+
             for i, trial_log in enumerate(pareto_frontier):
                 print("--------------------------------------------------------")
-                print("Pareto_{}".format(i + 1))
+                print("Optimization_{}".format(i + 1))
                 score, price, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.reduced_exec_time
                 # logger.info("  Params: {}".format(trial_log.params))
                 if GlobalOptConfig.base_quality is not None:

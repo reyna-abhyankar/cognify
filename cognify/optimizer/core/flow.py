@@ -208,17 +208,52 @@ class ModuleTransformTrace:
                 return False
         return True
 
+@dataclass
+class PatienceConfig:
+    quality_min_delta: float
+    cost_min_delta: float
+    exec_time_min_delta: float
+    n_iterations: int
+
+    def __post_init__(self):
+        if self.quality_min_delta < 0 or self.cost_min_delta < 0 or self.exec_time_min_delta < 0 or self.n_iterations < 0:
+            raise ValueError("patience values should be non-negative")
 
 @dataclass
 class OptConfig:
+    """Configuration for optimization of each layer
+
+    Attributes:
+        n_trials (int): number of iterations of search.
+
+        throughput (int, optional): number of trials to run in parallel. Defaults to 2.
+
+        log_dir (str): directory to save logs.
+
+        evolve_interval (int): interval to evolve the dynamic cogs.
+
+        opt_log_path (str): path to save optimization logs.
+
+        param_save_path (str): path to save optimized parameters.
+
+        frugal_eval_cost (bool): whether to favor cheaper evaluations in early stage.
+
+        use_SH_allocation (bool): whether to use Successive Halving strategy.
+
+        patience (Patience, optional): dataclass of (quality_min_delta, cost_min_delta, exec_time_min_delta, n_iteration) to set the early stop threshold.
+
+        frac (float): fraction of the optimization from the last layer.
+    """
     n_trials: int
-    throughput: int = field(default=2)
+    throughput: int = field(default=1)
     log_dir: str = field(default=None)
     evolve_interval: int = field(default=2)
     opt_log_path: str = field(default=None)
     param_save_path: str = field(default=None)
     frugal_eval_cost: bool = field(default=True)
     use_SH_allocation: bool = field(default=False)
+    patience: Optional[PatienceConfig] = field(default_factory=lambda: PatienceConfig(0.01,0.01,0.01,5))
+    frac: float = field(default=1.0)
 
     def finalize(self):
         if not os.path.exists(self.log_dir):
@@ -233,7 +268,6 @@ class OptConfig:
         for key, value in other.__dict__.items():
             if value is not None:
                 setattr(self, key, value)
-
 
 @dataclass
 class TopDownInformation:

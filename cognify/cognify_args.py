@@ -82,7 +82,7 @@ class OptimizationArgs(CommonArgs):
 
 @dataclasses.dataclass
 class EvaluationArgs(CommonArgs):
-    select: str = 'NoChange'
+    select: str = 'Original'
     n_parallel: int = 10
     output_path: str = None
 
@@ -94,13 +94,12 @@ class EvaluationArgs(CommonArgs):
     def add_cli_args(parser: argparse.ArgumentParser):
         CommonArgs.add_cli_args(parser)
         parser.add_argument(
-            "-s",
             "--select",
             type=str,
             required=True,
             default=EvaluationArgs.select,
-            help="Select one configuration by ID for evaluation. If evaluating the original workflow, use 'NoChange'.",
-            metavar="Pareto_x/NoChange",
+            help="Select one configuration by ID for evaluation. If evaluating the original workflow, use 'Original'.",
+            metavar="Optimization_x/Original",
         )
         parser.add_argument(
             "-j",
@@ -122,16 +121,16 @@ class EvaluationArgs(CommonArgs):
 
 @dataclasses.dataclass
 class InspectionArgs(CommonArgs):
-    dump_frontier_details: bool = False
+    dump_optimization_results: bool = False
 
     @staticmethod
     def add_cli_args(parser):
         CommonArgs.add_cli_args(parser)
         parser.add_argument(
             "-f",
-            "--dump_frontier_details",
+            "--dump_optimization_results",
             action="store_true",
-            help="Dump descriptive optimization details of all Pareto frontiers.",
+            help="Dump descriptive optimization details.",
         )
         
 @dataclasses.dataclass
@@ -160,6 +159,30 @@ class RunArgs(CommonArgs):
             metavar="input_string",
         )
 
+@dataclasses.dataclass
+class RunArgs(CommonArgs):
+    select: str = 'Original'
+    input: str = ""
+
+    @staticmethod
+    def add_cli_args(parser):
+        CommonArgs.add_cli_args(parser)
+        parser.add_argument(
+            "--select",
+            type=str,
+            required=True,
+            default=EvaluationArgs.select,
+            help="Select one configuration by ID for evaluation. If evaluating the original workflow, use 'Original'.",
+            metavar="Optimization_x/Original",
+        )
+        parser.add_argument(
+            "-i",
+            "--input",
+            type=str,
+            default=RunArgs.input,
+            help="Input string for the workflow (currently only single input supported).",
+            metavar="input_string",
+        )
 
 def init_cognify_args(parser):
     subparsers = parser.add_subparsers(dest="mode")

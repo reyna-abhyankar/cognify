@@ -13,6 +13,10 @@ from cognify.optimizer.core.flow import TopDownInformation, LayerConfig
 from cognify.optimizer.core.opt_layer import OptLayer, GlobalOptConfig
 from cognify.optimizer.checkpoint.ckpt import LogManager, TrialLog
 from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv, _report_exec_time_reduction
+from cognify.optimizer.utils import _report_quality_impv_raw, _report_cost_reduction_raw, _report_exec_time_reduction_raw
+
+from cognify.optimizer.control_param import SelectedObjectives
+from cognify._tracing import trace_quality_improvement, trace_cost_improvement, trace_latency_improvement
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +44,7 @@ class MultiLayerOptimizationDriver:
         self,
         layer_configs: list[LayerConfig],
         opt_log_dir: str,
+        objectives: SelectedObjectives,
         quality_constraint: float = None,
         base_quality: float = None,
         base_cost: float = None,
@@ -53,6 +58,7 @@ class MultiLayerOptimizationDriver:
         NOTE: the order of the layers is from top to bottom, i.e., the last layer will run program evaluation directly while others will run layer evaluation
         """
         self.layer_configs = layer_configs
+        self.objectives = objectives
         
         GlobalOptConfig.quality_constraint = quality_constraint
         GlobalOptConfig.base_quality = base_quality
@@ -106,7 +112,7 @@ class MultiLayerOptimizationDriver:
         return opt_cost, frontier, finished_opt_logs
 
     def _extract_trial_id(self, config_id: str) -> str:
-        param_log_dir = os.path.join(self.opt_log_dir, "pareto_frontier_details")
+        param_log_dir = os.path.join(self.opt_log_dir, "optimized_workflow_details")
         if not os.path.exists(param_log_dir):
             raise ValueError(
                 f"Cannot find the optimization log directory at {param_log_dir}"
@@ -193,28 +199,32 @@ class MultiLayerOptimizationDriver:
     def inspect(self, dump_details: bool = False):
         self.load_from_file()
         # dump frontier details to file
-        opt_cost, pareto_frontier, finished_opt_logs = LogManager().get_global_summary(verbose=True)
+        opt_cost, pareto_frontier, finished_opt_logs = LogManager().get_global_summary(verbose=True, selected_objectives=self.objectives)
         if dump_details:
             self.dump_frontier_details(pareto_frontier, finished_opt_logs)
         return
 
     def dump_frontier_details(self, frontier, finished_opt_logs):
-        param_log_dir = os.path.join(self.opt_log_dir, "pareto_frontier_details")
+        param_log_dir = os.path.join(self.opt_log_dir, "optimized_workflow_details")
         if not os.path.exists(param_log_dir):
             os.makedirs(param_log_dir, exist_ok=True)
         for i, trial_log in enumerate(frontier):
             trial_log: TrialLog
             score, price, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.reduced_exec_time
-            dump_path = os.path.join(param_log_dir, f"Pareto_{i+1}.cog")
+            dump_path = os.path.join(param_log_dir, f"Optimization_{i+1}.cog")
             details = f"Trial - {trial_log.id}\n"
+            details += f"Optimized for {str(self.objectives)}\n"
             log_path = finished_opt_logs[trial_log.id][1]
             details += f"Log at: {log_path}\n"
             if GlobalOptConfig.base_quality is not None:
                 details += _report_quality_impv(score, GlobalOptConfig.base_quality)
+                trace_quality_improvement(_report_quality_impv_raw(score, GlobalOptConfig.base_quality))
             if GlobalOptConfig.base_price is not None:
                 details += _report_cost_reduction(price, GlobalOptConfig.base_price)
+                trace_cost_improvement(_report_cost_reduction_raw(score, GlobalOptConfig.base_quality))
             if GlobalOptConfig.base_exec_time is not None:
                 details += _report_exec_time_reduction(exec_time, GlobalOptConfig.base_exec_time)
+                trace_latency_improvement(_report_exec_time_reduction_raw(score, GlobalOptConfig.base_quality))
                 
             details += f"Quality: {score:.3f}, Cost per 1K invocation: ${price * 1000:.2f}, Avg exec time: {exec_time:.2f} s\n"
             trans = trial_log.show_transformation()

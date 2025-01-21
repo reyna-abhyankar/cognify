@@ -29,6 +29,7 @@ def dry_run(script_path, evaluator: EvaluatorPlugin, log_dir):
         aggregated_proposals={},
         trace_back=["dry_run"],
     )
+    print("Analyzing workflow...")
     logger.info(
         f"Dry run on train set: {len(evaluator.dataset['train'])} samples for optimizer analysis"
     )
@@ -40,7 +41,7 @@ def dry_run(script_path, evaluator: EvaluatorPlugin, log_dir):
         logger.info(f"Loading existing dry run result at {dry_run_log_path}")
         return dry_run_result
 
-    result = evaluator.get_score("train", eval_task, show_process=True)
+    result = evaluator.get_score("train", eval_task, frac=1, show_process=False, show_tqdm_bar=True, is_dry_run=True)
     if result.complete:
         with open(dry_run_log_path, "w+") as f:
             json.dump(result.to_dict(), f, indent=4)
@@ -83,7 +84,7 @@ def optimize(
     assert (
         eval_fn is not None or eval_path is not None
     ), "Either eval_fn or eval_path should be provided"
-    
+
     # if both provided, use eval_path
     if eval_path is not None:
         eval_fn = None
@@ -163,11 +164,12 @@ def optimize(
     # build optimizer from parameters
     opt_driver = driver.MultiLayerOptimizationDriver(
         layer_configs=control_param.opt_layer_configs,
+        objectives=control_param.objectives,
         opt_log_dir=control_param.opt_history_log_dir,
         quality_constraint=control_param.quality_constraint * raw_result.reduced_score,
         base_quality=raw_result.reduced_score,
         base_cost=raw_result.reduced_price,
-        base_exec_time=raw_result.reduced_exec_time,
+        base_exec_time=raw_result.reduced_exec_time
     )
 
     cost, pareto_frontier, opt_logs = opt_driver.run(

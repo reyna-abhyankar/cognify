@@ -37,7 +37,7 @@ def evaluate(
         evaluator_fn=eval_fn,
         n_parallel=n_parallel,
     )
-    if config_id == "NoChange":
+    if config_id == "Original":
         if workflow is None:
             raise ValueError(
                 "If evaluating the original workflow, path to the script should be provided"
@@ -51,7 +51,7 @@ def evaluate(
             aggregated_proposals={},
             trace_back=["evaluate_raw"],
         )
-        result = evaluator.get_score(mode="test", task=eval_task, show_process=True)
+        result = evaluator.get_score(mode="test", task=eval_task, frac=1, show_process=True, show_tqdm_bar=False)
         print(f"----- Testing Raw Program -----")
         print(f"=========== Evaluation Results ===========")
         print(
@@ -69,7 +69,7 @@ def evaluate(
     if control_param is None:
         control_param_save_path = os.path.join(opt_result_path, "control_param.json")
         control_param = ControlParameter.from_json_profile(control_param_save_path)
-        
+
     # get dry run result on train set
     dry_run_log_path = os.path.join(
         control_param.opt_history_log_dir, "dry_run_train.json"
@@ -96,6 +96,7 @@ def evaluate(
         quality_constraint=None,
         base_quality=base_quality,
         base_cost=base_cost,
+        base_exec_time=base_exec_time
     )
     result = opt_driver.evaluate(
         evaluator=evaluator,
@@ -106,26 +107,3 @@ def evaluate(
         with open(save_to, "w") as f:
             json.dump(result.to_dict(), f, indent=4)
     return result
-
-
-def load_workflow(
-    *,
-    config_id: str,
-    opt_result_path: Optional[str] = None,
-    control_param: Optional[ControlParameter] = None,
-) -> Callable:
-    assert (
-        control_param or opt_result_path
-    ), "Either control_param or opt_result_path should be provided"
-    # If both are provided, control_param will be used
-
-    if control_param is None:
-        control_param_save_path = os.path.join(opt_result_path, "control_param.json")
-        control_param = ControlParameter.from_json_profile(control_param_save_path)
-
-    opt_driver = driver.MultiLayerOptimizationDriver(
-        layer_configs=control_param.opt_layer_configs,
-        opt_log_dir=control_param.opt_history_log_dir,
-    )
-    schema, _ = opt_driver.load(config_id)
-    return schema.program
