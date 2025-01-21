@@ -46,6 +46,8 @@ from cognify.optimizer.core.flow import (
     OptConfig,
 )
 from cognify.optimizer.control_param import SelectedObjectives
+from cognify.optimizer.progress_info import pbar
+from termcolor import colored
 
 logger = logging.getLogger(__name__)
 
@@ -55,29 +57,6 @@ qc_identifier = "_#cognify_quality_constraint"
 
 def get_quality_constraint(trial: optuna.trial.FrozenTrial):
     return trial.user_attrs.get(qc_identifier, (1,))
-
-
-_max_position = 20
-_position_pool = list(range(_max_position))
-heapq.heapify(_position_pool)
-_pbar_lock = threading.Lock()
-
-
-def ask_for_position():
-    global _max_position
-    with _pbar_lock:
-        # if no position is available, add a new one
-        if len(_position_pool) == 0:
-            position = _max_position
-            _max_position += 1
-        else:
-            position = heapq.heappop(_position_pool)
-        return position
-
-
-def release_position(position):
-    with _pbar_lock:
-        heapq.heappush(_position_pool, position)
 
 
 class OptimizationLayer:
@@ -393,7 +372,7 @@ class OptimizationLayer:
             trial.set_user_attr(qc_identifier, constraint_result)
             # NOTE: add system attr at loading time
             # trial.set_system_attr(_base._CONSTRAINTS_KEY, constraint_result)
-    
+
     def _update_best_trial(self, eval_result: EvaluationResult):
         with self._study_lock:
             current_score, current_cost, current_exec_time = self.get_eval_feedback(eval_result)
@@ -407,7 +386,7 @@ class OptimizationLayer:
                 self._lowest_exec_time = (
                     current_exec_time if self._lowest_exec_time is None else min(self._lowest_exec_time, current_exec_time)
                 )
-                
+
             if not self._should_stop and self.top_down_info.opt_config.patience is not None and self._patience_budget is not None:
                 impv = False
                 score_threshold = self.top_down_info.opt_config.patience.quality_min_delta
@@ -424,9 +403,7 @@ class OptimizationLayer:
                     # early stop if patience budget is used up
                     if self._patience_budget <= 0:
                         self._should_stop = True
-                    
-            
-                
+
     def update(
         self,
         trial: optuna.trial.Trial,
@@ -447,8 +424,8 @@ class OptimizationLayer:
             f"- {self.name} - Trial {trial.number} result: score= {score:.2f}, cost@1000= ${price*1000:.3f}, exec_time= {exec_time:.2f}s"
         )
         self.opt_cost += eval_result.total_eval_cost
-        
-        self._update_best_trial(eval_result)       
+
+        self._update_best_trial(eval_result)
 
         # update study if any dynamic params can evolve
         with self._study_lock:
@@ -544,9 +521,11 @@ class OptimizationLayer:
     def _optimize_iteration(
         self,
         base_program: list[Module],
+        frac: float,
     ) -> EvaluationResult:
         next_trial, program, new_trace, log_id = self.propose(base_program, 1)[0]
         next_level_info = self.prepare_next_level_tdi(program, new_trace, log_id)
+        next_level_info.opt_config.frac = frac
 
         if _should_exit():
             return None
@@ -560,83 +539,91 @@ class OptimizationLayer:
             logger.error(traceback.format_exc())
             raise
 
-    def _gen_opt_bar_desc(self, score, cost, exec_time, total_opt_cost):
+    def _gen_opt_bar_desc(self, score, cost, exec_time, total_opt_cost,):
         indent = "---" * self.hierarchy_level + ">"
+        color = "green"
         score = score or 0.0
         cost = cost or 0.0
         exec_time = exec_time or 0.0
+        score_text = colored(f"{score:.2f}", color)
+        cost_text = colored(f"${cost*1000:.2f}", color)
+        exec_time_text = colored(f"{exec_time:.2f}s", color)
+        total_opt_cost_text = colored(f"${total_opt_cost:.2f}", color)
+
         if self.top_down_info.trace_back:
             opt_trace = " | ".join(self.top_down_info.trace_back)
-            return f"{indent} {self.name} in {opt_trace} | (best score: {score:.2f}, lowest cost@1000: ${cost*1000:.2f}), lowest exec time: {exec_time:.2f}s | Total Optimization Cost: ${total_opt_cost:.2f}"
+            return f"{indent} {self.name} in {opt_trace} | (best score: {score_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text}) | Total Optimization Cost: {total_opt_cost_text}"
         else:
-            return f"{indent} {self.name} | (best score: {score:.2f}, lowest cost@1000: ${cost*1000:.2f}), lowest exec time: {exec_time:.2f}s | Total Optimization Cost: ${total_opt_cost:.2f}"
+            return f"{indent} {self.name} | (best score: {score_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text}) | Total Optimization Cost: {total_opt_cost_text}"
 
-    def _optimize(self, base_program: list[Module]):
+    def _optimize(self, base_program: list[Module], frac: float):
         opt_config = self.top_down_info.opt_config
+        frac = opt_config.frac
         num_current_trials = len(self.opt_logs)
-        pbar_position = ask_for_position()
 
-        def _update_pbar(pbar):
-            pbar.set_description(
-                self._gen_opt_bar_desc(self._best_score, self._lowest_cost, self._lowest_exec_time, self.opt_cost)
-            )
-            pbar.update(1)
+        def _update_pbar(frac: float):
+            pbar.update_status(self._best_score, self._lowest_cost, self._lowest_exec_time, self.opt_cost)
 
         initial_score = self._best_score if self._best_score is not None else 0.0
         initial_cost = self._lowest_cost if self._lowest_cost is not None else 0.0
         initial_exec_time = self._lowest_exec_time if self._lowest_exec_time is not None else 0.0
-        with tqdm(
-            total=num_current_trials + opt_config.n_trials,
-            initial=num_current_trials,
-            desc=self._gen_opt_bar_desc(initial_score, initial_cost, initial_exec_time, self.opt_cost),
-            leave=self.hierarchy_level == 0,
-            position=pbar_position,
-        ) as pbar:
-            counter = 0
-            if opt_config.throughput == 1:
-                for _ in range(opt_config.n_trials):
-                    if _should_exit() or self._should_stop:
-                        break
-                    result = self._optimize_iteration(base_program)
-                    if result is None or not result.complete:
-                        continue
-                    counter += 1
-                    if (
-                        self.save_ckpt_interval > 0
-                        and counter % self.save_ckpt_interval == 0
-                    ):
-                        self.save_ckpt(
-                            opt_config.opt_log_path, opt_config.param_save_path
-                        )
-                    _update_pbar(pbar)
-            else:
-                with ThreadPoolExecutor(max_workers=opt_config.throughput) as executor:
-                    futures = [
-                        executor.submit(self._optimize_iteration, base_program)
-                        for _ in range(opt_config.n_trials)
-                    ]
-                    for f in as_completed(futures):
-                        try:
-                            result = f.result()
-                            if result and result.complete:
-                                counter += 1
-                                if (
-                                    self.save_ckpt_interval > 0
-                                    and counter % self.save_ckpt_interval == 0
-                                ):
-                                    self.save_ckpt(
-                                        opt_config.opt_log_path,
-                                        opt_config.param_save_path,
-                                    )
-                                _update_pbar(pbar)
-                            if _should_exit() or self._should_stop:
-                                executor.shutdown(wait=False, cancel_futures=True)
-                                break
-                        except Exception as e:
-                            logger.error(f"Error in evaluating task: {e}", exc_info=True)
-                            raise
 
-        release_position(pbar_position)
+        if self.hierarchy_level == 0:
+            pbar.init_pbar(
+                total=float(num_current_trials + opt_config.n_trials),
+                initial=float(num_current_trials),
+                initial_score=initial_score,
+                initial_cost=initial_cost,
+                initial_exec_time=initial_exec_time,
+                opt_cost=self.opt_cost
+                #desc=self._gen_opt_bar_desc(initial_score, initial_cost, initial_exec_time, self.opt_cost),
+            )
+
+        counter = 0
+        if opt_config.throughput == 1:
+            for _ in range(opt_config.n_trials):
+                if _should_exit() or self._should_stop:
+                    break
+                result = self._optimize_iteration(base_program, frac / opt_config.n_trials)
+
+                if result is None or not result.complete:
+                    continue
+                counter += 1
+                if (
+                    self.save_ckpt_interval > 0
+                    and counter % self.save_ckpt_interval == 0
+                ):
+                    self.save_ckpt(
+                        opt_config.opt_log_path, opt_config.param_save_path
+                    )
+                _update_pbar(frac / opt_config.n_trials)
+        else:
+            with ThreadPoolExecutor(max_workers=opt_config.throughput) as executor:
+                futures = [
+                    executor.submit(self._optimize_iteration, base_program, frac / opt_config.n_trials)
+                    for _ in range(opt_config.n_trials)
+                ]
+                for f in as_completed(futures):
+                    try:
+                        result = f.result()
+                        if result and result.complete:
+                            counter += 1
+                            if (
+                                self.save_ckpt_interval > 0
+                                and counter % self.save_ckpt_interval == 0
+                            ):
+                                self.save_ckpt(
+                                    opt_config.opt_log_path,
+                                    opt_config.param_save_path,
+                                )
+                            _update_pbar(frac / opt_config.n_trials)
+                        if _should_exit() or self._should_stop:
+                            executor.shutdown(wait=False, cancel_futures=True)
+                            break
+                    except Exception as e:
+                        logger.error(f"Error in evaluating task: {e}", exc_info=True)
+                        raise
+        pbar.release_position(self.hierarchy_level)
 
     def get_finished_bo_trials(self, need_copy: bool) -> list[FrozenTrial]:
         states_of_interest = (TrialState.COMPLETE,)
@@ -691,9 +678,9 @@ class OptimizationLayer:
         candidates = self.get_all_candidates()
         pareto_frontier = self.get_pareto_front(candidates=candidates)
         if self.hierarchy_level == 0:
-            print(f"================ Optimization Results =================") 
+            print(f"================ Optimization Results =================")
             print(f"Optimized for: {str(self.objectives)}")
-            
+
             if len(pareto_frontier) == 0:
                 print("Based on current optimization parameters, the best solution is the original workflow.")
                 print("We recommend increasing the number of trials or relaxing constraints.")
@@ -773,7 +760,7 @@ class OptimizationLayer:
         if total_budget > 0:
             self.pre_optimize()
             logger.debug(f"Start optimization {self.name} with {total_budget} trials")
-            self._optimize(list(current_tdi.current_module_pool.values()))
+            self._optimize(list(current_tdi.current_module_pool.values()), current_tdi.opt_config.frac)
             logger.debug(f"Optimization {self.name} finished")
             self.save_ckpt(
                 self.top_down_info.opt_config.opt_log_path,
@@ -828,7 +815,7 @@ class BottomLevelTrialLog(TrialLog):
     def show_transformation(self) -> str:
         eval_task = EvalTask.from_dict(self.eval_task)
         return eval_task.show_opt_trace()
-    
+
     def compare_using_objective(self, other: "BottomLevelTrialLog", objectives: SelectedObjectives):
         if objectives.quality:
             return self.score > other.score
@@ -846,11 +833,9 @@ class BottomLevelOptimization(OptimizationLayer):
     def evaluate(self, log_id, new_top_down_info):
         eval_task = EvalTask.from_top_down_info(new_top_down_info)
         self.opt_logs[log_id].eval_task = eval_task.to_dict()
-        pbar_position = ask_for_position()
         eval_result: EvaluationResult = self.evaluator.evaluate(
-            eval_task, True, pbar_position, self.hierarchy_level + 1
+            eval_task, new_top_down_info.opt_config.frac, True, self.hierarchy_level + 1
         )
-        release_position(pbar_position)
         return eval_result
 
     def get_best_trial_log(self) -> BottomLevelTrialLog:
@@ -878,7 +863,7 @@ class BottomLevelOptimization(OptimizationLayer):
             f"- {self.name} - Trial {trial.number} result: score= {score:.2f}, cost@1000= ${price*1000:.3f}, exec_time= {exec_time:.2f}s"
         )
         self.opt_cost += eval_result.total_eval_cost
-        
+
         self._update_best_trial(eval_result)
         # update study if any dynamic params can evolve
         with self._study_lock:
@@ -901,10 +886,9 @@ class BottomLevelOptimization(OptimizationLayer):
                     evolve_eval_task = EvalTask.from_dict(
                         copy.deepcopy(best_trial_log.eval_task)
                     )
-                    pbar_position = ask_for_position()
                     evolve_result = self.evaluator.get_score(
-                        mode="eval", task=evolve_eval_task, show_process=False,
-                        pbar_position=pbar_position, hierarchy_level=self.hierarchy_level + 1
+                        mode="eval", task=evolve_eval_task, frac=1, show_process=False,
+                        hierarchy_level=self.hierarchy_level + 1
                     )
                     logger.debug(
                         f"Validation set result: score= {evolve_result.reduced_score:.2f}, cost@1000= {evolve_result.reduced_price*1000:.3f}, exec_time= {evolve_result.reduced_exec_time:.2f}s"
@@ -957,24 +941,22 @@ class BottomLevelOptimization(OptimizationLayer):
         logger.debug(f"Start pre-optimization for {self.name}")
         eval_task = EvalTask.from_top_down_info(self.top_down_info)
         eval_task.trace_back = ["pre-opt-analysis"]
-        pbar_position = ask_for_position()
         if self.evaluator.dataset["eval"][0] is None:
             eval_result = self.evaluator.get_score(
                 mode="train",
                 task=eval_task,
-                show_process=True,
-                pbar_position=pbar_position,
+                frac=1,
+                show_process=False,
                 hierarchy_level=self.hierarchy_level + 1,
             )
         else:
             eval_result = self.evaluator.get_score(
                 mode="eval",
                 task=eval_task,
-                show_process=True,
-                pbar_position=pbar_position,
+                frac=1,
+                show_process=False,
                 hierarchy_level=self.hierarchy_level + 1,
             )
-        release_position(pbar_position)
         with self._study_lock:
             is_evolved = False
             for params in self.params.values():
@@ -1016,12 +998,12 @@ class BottomLevelOptimization(OptimizationLayer):
         print(f"----- Testing select trial {trial_id} -----")
         print("  Params: {}".format(trial_log.params))
         # print("  Training Quality: {:.3f}, Cost per 1K invocation: ${:.2f}\n".format(trial_log.score, trial_log.price * 1000))
-        
+
         eval_task = EvalTask.from_dict(trial_log.eval_task)
         # run evaluation
         eval_result = evaluator.get_score(mode='test', task=eval_task, show_process=True, keep_bar=True)
-        
-        print(f"=========== Evaluation Results ===========") 
+
+        print(f"=========== Evaluation Results ===========")
         if base_quality is not None:
             print("  Quality improvement: {:.0f}%".format(_report_quality_impv(eval_result.reduced_score, base_quality)))
         if base_cost is not None:

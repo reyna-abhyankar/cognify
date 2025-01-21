@@ -51,7 +51,7 @@ def evaluate(
             aggregated_proposals={},
             trace_back=["evaluate_raw"],
         )
-        result = evaluator.get_score(mode="test", task=eval_task, show_process=True)
+        result = evaluator.get_score(mode="test", task=eval_task, frac=1, show_process=True)
         print(f"----- Testing Raw Program -----")
         print(f"=========== Evaluation Results ===========")
         print(
@@ -69,7 +69,7 @@ def evaluate(
     if control_param is None:
         control_param_save_path = os.path.join(opt_result_path, "control_param.json")
         control_param = ControlParameter.from_json_profile(control_param_save_path)
-        
+
     # get dry run result on train set
     dry_run_log_path = os.path.join(
         control_param.opt_history_log_dir, "dry_run_train.json"
@@ -112,5 +112,3 @@ def evaluate(
         with open(save_to, "w") as f:
             json.dump(result.to_dict(), f, indent=4)
     return result
-
-

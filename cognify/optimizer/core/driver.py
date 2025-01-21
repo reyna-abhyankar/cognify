@@ -250,4 +250,3 @@ class MultiLayerOptimizationDriver:
             details += trans
             with open(dump_path, "w") as f:
                 f.write(details)
-
