@@ -9,10 +9,15 @@ from src.utils import parse_arguments, read_from_file
 
 import cognify
 import numpy as np
+import warnings
+
 
 @cognify.register_data_loader
 def load_data():
     args = parse_arguments()
+    args.pipeline_nodes = args.pipeline_nodes.replace("column_filtering+", "")
+    args.pipeline_nodes = args.pipeline_nodes.replace("column_selection+", "")
+    args.pipeline_nodes = args.pipeline_nodes.replace("table_selection+", "")
     all_train = read_from_file('data/dev/ca_school.json', args)
     test_set = read_from_file('data/dev/sub_sampled_bird_dev_set.json', args)
     
@@ -36,7 +41,7 @@ def eval(stats):
 from cognify.hub.search import default
 search_settings = default.create_search(
     search_type='light',
-    n_trials=15,
-    opt_log_dir='ca_school_opt_demo',
+    n_trials=5,
+    opt_log_dir='ca_school_opt_demo_5_trial_record_xxx',
     evaluator_batch_size=40,
 )

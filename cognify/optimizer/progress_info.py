@@ -5,6 +5,11 @@ import sys
 
 from tqdm.auto import tqdm
 
+import warnings
+from tqdm import TqdmWarning
+
+warnings.filterwarnings("ignore", category=TqdmWarning, module="tqdm")
+
 class ProgressInfo:
 
     pbar_lock = threading.Lock()
@@ -27,8 +32,10 @@ class ProgressInfo:
             leave=True,
             position=self.pbar_position,
             colour="green",
-            bar_format=r'{l_bar}{bar}| [{elapsed}<{remaining}]'
+            bar_format=r'{l_bar}{bar}| {n:.1f}/{total_fmt} [{elapsed}<{remaining}]'
         )
+        self.total = total
+        self.initial = initial
 
 
     @staticmethod
@@ -62,16 +69,20 @@ class ProgressInfo:
         score = score or 0.0
         cost = cost or 0.0
         exec_time = exec_time or 0.0
-        score_text = colored(f"{score:.2f}", color)
-        cost_text = colored(f"${cost*1000:.2f}", color)
-        exec_time_text = colored(f"{exec_time:.2f}s", color)
+        score_text = colored(f"{score:.2f}" if score is not None else "N/A", color)
+        cost_text = colored(f"${cost*1000:.2f}" if cost is not None else "N/A", color)
+        exec_time_text = colored(f"{exec_time:.2f}s" if exec_time is not None else "N/A", color)
         total_opt_cost_text = colored(f"${total_opt_cost:.2f}", color)
 
         return f"Optimization progress | best score: {score_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text} | Total Optimization Cost: {total_opt_cost_text}"
 
     def update_progress(self, frac: float):
         with ProgressInfo.pbar_lock:
-            self.pbar.update(frac)
+            if self.initial + frac > self.total:
+                self.pbar.update(self.total - self.initial)
+            else:
+                self.pbar.update(frac)
+            self.initial += frac
 
     def update_status(self, best_score, lowest_cost, lowest_exec_time, opt_cost):
         with ProgressInfo.pbar_lock:

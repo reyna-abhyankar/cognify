@@ -73,7 +73,7 @@ def call_llm_chain(prompt: Any, engine: Any, parser: Any, chain: Any, request_kw
         Exception: If all attempts fail.
     """
     logger = Logger()
-    for attempt in range(max_attempts):
+    for attempt in range(2):
         try:
             # breakpoint()
             if chain is None:

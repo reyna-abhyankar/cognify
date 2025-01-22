@@ -72,10 +72,10 @@ def _compare_sqls_outcomes(db_path: str, predicted_sql: str, ground_truth_sql: s
         # pred_sql =  "SELECT T2.City FROM schools T2 JOIN frpm T1 ON T1.CDSCode = T2.CDSCode WHERE T1.`NSLP Provision Status` = 'Lunch Provision 2' AND T1.`County Name` = 'Merced' AND T2.EILCode = 'HS' AND T2.GSserved = '9-12' ORDER BY T2.City LIMIT 1; "
         predicted_res = execute_sql(db_path, predicted_sql)
         ground_truth_res = execute_sql(db_path, ground_truth_sql)
-        # if cnt == 1:
-        #     print(f"groud_truth_res: {ground_truth_res[0][0]}")
-        #     print(f"predicted_res: {predicted_res[0][0]}")
-        # cnt += 1
+        #if cnt == 1:
+            #print(f"Prediction: {ground_truth_res[0][0]}")
+        #print(f"Prediction:\n{predicted_res[0][0]}")
+        cnt += 1
         return int(set(predicted_res) == set(ground_truth_res))
     except Exception as e:
         logging.error(f"Error comparing SQL outcomes: {e}")

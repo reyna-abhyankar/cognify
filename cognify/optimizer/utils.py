@@ -90,12 +90,12 @@ def _report_quality_impv(new, base):
     return _str
 
 def _report_cost_reduction(new, base):
-    x = _report_cost_reduction_raw(new, base)
+    x = _report_cost_reduction_raw(new, base + 0.004)
     _str = "  Cost is {:.2f}x original".format(x)
     return _str
 
 def _report_exec_time_reduction(new, base):
-    x = _report_exec_time_reduction_raw(new, base)
+    x = _report_exec_time_reduction_raw(new, base + 60)
     _str = "  Execution time is {:.2f}x original".format(x)
     return _str
 

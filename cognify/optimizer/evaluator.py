@@ -329,7 +329,7 @@ class EvalTask:
                 raise ValueError(f"Input from data loader should be a dict, got {input}")
             if label is not None and not isinstance(label, dict):
                 raise ValueError(f"Label from data loader should be a dict, got {label}")
-
+            
             schema, module_pool = self.load_and_transform()
             workflow_args, workflow_defaults = get_function_kwargs(schema.program)
             # check if all required fields are provided
@@ -338,13 +338,13 @@ class EvalTask:
                     raise ValueError(
                         f"Missing field `{field}` in input when calling the workflow\nAvailable fields: {input.keys()}"
                     )
-
+            
             start_time = time.time()
             end_time = time.time()
             status = TaskStatus.SUCCESS
             score = 0.0
+            result = None   # this value is unused in `get_score`, so we can set this to `None` -- should refactor this
             price = 0.0
-            exec_time = 0.0
             lm_to_demo = {}
 
             result = schema.program(**input)
@@ -377,22 +377,113 @@ class EvalTask:
                         if demo is not None:
                             lm_to_demo[lm.name] = demo
                 # print(f"Task {task_index} put with {status}")
-                    exec_time = end_time - start_time
-                    q.put(
-                        EvalTaskResult(
-                            task_index,
-                            score,
-                            price,
-                            exec_time,
-                            lm_to_demo,
-                            finished=True
-                        ),
-                        block=False,
-                    )
-                else:
-                    q.put(get_unfinished_eval_task_result(task_index))
+                q.put(
+                    EvalTaskResult(
+                        task_index,
+                        score,
+                        price,
+                        end_time - start_time,
+                        lm_to_demo,
+                        status != TaskStatus.INTERRUPTED,
+                    ),
+                    block=False,
+                )
+                # print(f"Task {task_index} send result back")
+            except Exception as e:
+                logger.error(f"Error sending result back for task {task_index}: {e}")
             finally:
                 sema.release()
+
+        # try:
+        #     print(f"Task {task_index} start")
+        #     if input is not None and not isinstance(input, dict):
+        #         print(f"Task {task_index} 1")
+        #         raise ValueError(f"Input from data loader should be a dict, got {input}")
+        #     if label is not None and not isinstance(label, dict):
+        #         print(f"Task {task_index} 2")
+        #         raise ValueError(f"Label from data loader should be a dict, got {label}")
+
+        #     print(f"Task {task_index} 3")
+        #     schema, module_pool = self.load_and_transform()
+        #     print(f"Task {task_index} 4")
+        #     workflow_args, workflow_defaults = get_function_kwargs(schema.program)
+        #     print(f"Task {task_index} 5")
+        #     # check if all required fields are provided
+        #     for field in workflow_args:
+        #         if field not in workflow_defaults and field not in input:
+        #             raise ValueError(
+        #                 f"Missing field `{field}` in input when calling the workflow\nAvailable fields: {input.keys()}"
+        #             )
+        #     print(f"Task {task_index} 6")
+
+        #     start_time = time.time()
+        #     end_time = time.time()
+        #     status = TaskStatus.SUCCESS
+        #     score = 0.0
+        #     price = 0.0
+        #     exec_time = 0.0
+        #     lm_to_demo = {}
+
+        #     try:
+        #         result = schema.program(**input)
+        #         print(f"Task {task_index} 7")
+        #         end_time = time.time()
+        #         # merge input/result/label to a single dict
+        #         state = {**(input or {}), **(result or {}), **(label or {})}
+        #         score = evaluator.score(state)
+        #         print(f"Task {task_index} 8")
+        #         # print(f"Task {task_index} finished success")
+        #         # signal.alarm(0)  # Cancel the alarm after success
+        #         print("try 1")
+        #     except Exception as e:
+        #         # catch any errors thrown during the workflow and treat as an invalid result by scoring 0
+        #         # Note: scoring 0 may be problematic if the evaluator's range includes negative numbers
+        #         logger.error(f"Workflow execution threw error for task {task_index}: {e}. Automatic score of 0")
+        #         end_time = time.time()  # this isn't accurate if the process is interrupted
+        #         status = TaskStatus.FAILED
+        #         print("failed")
+        #     finally:
+        #     # get price and demo of running the program
+        #     # signal.alarm(0)  # Cancel the alarm after success
+        #         # try:
+        #         #     if status == TaskStatus.SUCCESS:
+        #         for lm in Module.all_of_type(module_pool.values(), Model):
+        #             price += lm.get_total_cost()
+        #             demo = lm.get_last_step_as_demo()
+        #             if demo is not None:
+        #                 lm_to_demo[lm.name] = demo
+        #         print(f"Task {task_index} put with {status}")
+        #         exec_time = end_time - start_time
+        #         q.put(
+        #             EvalTaskResult(
+        #                 task_index,
+        #                 score,
+        #                 price,
+        #                 exec_time,
+        #                 lm_to_demo,
+        #                 finished=True
+        #             ),
+        #             block=False
+        #         )
+        #         print("success")
+        #             # else:
+        #             #     q.put(get_unfinished_eval_task_result(task_index))
+
+        # except TimeoutError:
+        #     # print(f"Task {task_index} timed out")
+        #     end_time = time.time()  # this isn't accurate if the process is interrupted
+        #     status = TaskStatus.FAILED
+        #     print("timeout")
+        #     q.put(get_unfinished_eval_task_result(task_index))
+        # except KeyboardInterrupt:
+        #     status = TaskStatus.INTERRUPTED
+        #     print("interrupt")
+        #     q.put(get_unfinished_eval_task_result(task_index))
+        # except Exception as e:
+        #     q.put(get_unfinished_eval_task_result(task_index))
+        # finally:
+        #     print("semaphor released")
+        #     sema.release()
 
     def show_opt_trace(self) -> str:
         trace_lines = []
@@ -524,7 +615,7 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         # Task queue to limit the number of parallel tasks
         # avoid worker pool to avoid reusing the same process
         all_workers = []
-        sema = mp.BoundedSemaphore(n_parallel)
+        sema = mp.Semaphore(n_parallel)
         result_q = mp.Queue()
 
         def update_pbar(frac, eval_task_result: EvalTaskResult):
@@ -563,7 +654,7 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             all_workers.append(worker)
 
         if is_dry_run:
-            print("Optimizing workflow...")
+            print("Initializing optimization...")
         for i in range(len(all_workers) - n_visited):
             eval_task_result: EvalTaskResult = result_q.get()
             if not eval_task_result.finished:

@@ -29,7 +29,7 @@ def dry_run(script_path, evaluator: EvaluatorPlugin, log_dir):
         aggregated_proposals={},
         trace_back=["dry_run"],
     )
-    print("Analyzing workflow...")
+    print("Running original workflow on training data...")
     logger.info(
         f"Dry run on train set: {len(evaluator.dataset['train'])} samples for optimizer analysis"
     )

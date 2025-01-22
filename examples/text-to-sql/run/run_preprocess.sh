@@ -1,6 +1,6 @@
 # Define variables
-db_root_directory="/mnt/ssd4/lm_compiler/chess_data/dev_20240627/dev_databases" # UPDATE THIS WITH THE PATH TO THE PARENT DIRECTORY OF THE DATABASES
-db_id="all" # Options: all or a specific db_id
+db_root_directory="/mnt/ssd4/reyna/cognify/examples/text-to-sql/data/dev/dev_databases" # UPDATE THIS WITH THE PATH TO THE PARENT DIRECTORY OF THE DATABASES
+db_id="california_schools" # Options: all or a specific db_id
 verbose=true
 signature_size=100
 n_gram=3

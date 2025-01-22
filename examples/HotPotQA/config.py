@@ -20,7 +20,7 @@ def load_data():
                        dev_size=200, 
                        test_size=0)
     
-    trainset = [formatting(x) for x in dataset.train[0:100]]
+    trainset = [formatting(x) for x in dataset.train[0:10]]
     valset = [formatting(x) for x in dataset.train[100:150]]
     devset = [formatting(x) for x in dataset.dev]
     return trainset, valset, devset # training and evaluation data

@@ -50,24 +50,39 @@ def worker_opt(args, dataset):
 
     return {'stats': run_manager.statistics_manager.statistics.to_dict()}
 
-# @cognify.register_workflow
-# def worker_demo(query):
-#     """
-#     Main function to run the pipeline with the specified configuration.
-#     """
-#     args = parse_arguments()
-#     run_start_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-#     task = Task(query)
-#     result_dir = f"demo_one/{task.db_id}/{task.question_id}/{run_start_time}"
-#     if not os.path.exists(result_dir):
-#         os.makedirs(result_dir, exist_ok=True)
+# import litellm
+# litellm.set_verbose = True
 
-#     run_manager = RunManager(args, result_dir)
-#     run_manager.initialize_tasks([query])
-#     task = run_manager.tasks[0]
+def worker_demo(query):
+    """
+    Main function to run the pipeline with the specified configuration.
+    """
+
+    full_query = {
+        "question_id": 76,
+        "db_id": "california_schools",
+        "question": "What is the city location of the high school level school with Lunch Provision 2 whose lowest grade is 9 and the highest grade is 12 in the county of Merced?",
+        "evidence": "High school can be represented as EILCode = 'HS'",
+        "SQL": "SELECT T2.City FROM frpm AS T1 INNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode WHERE T1.`NSLP Provision Status` = 'Lunch Provision 2' AND T2.County = 'Merced' AND T1.`Low Grade` = 9 AND T1.`High Grade` = 12 AND T2.EILCode = 'HS'",
+        "difficulty": "moderate"
+    }
+
+    args = parse_arguments()
+    args.pipeline_nodes = args.pipeline_nodes.replace("column_filtering+", "")
+    args.pipeline_nodes = args.pipeline_nodes.replace("column_selection+", "")
+    args.pipeline_nodes = args.pipeline_nodes.replace("table_selection+", "")
+    run_start_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    task = Task(full_query)
+    result_dir = f"demo_one/{task.db_id}/{task.question_id}/{run_start_time}"
+    if not os.path.exists(result_dir):
+        os.makedirs(result_dir, exist_ok=True)
+
+    run_manager = RunManager(args, result_dir)
+    run_manager.initialize_tasks([full_query])
+    task = run_manager.tasks[0]
     
-#     result = run_manager.worker(task)
-#     run_manager.task_done(result, show_progress=False) 
+    result = run_manager.worker(task)
+    run_manager.task_done(result, show_progress=False) 
 
-#     return {'stats': run_manager.statistics_manager.statistics.to_dict()}
+    return {'stats': run_manager.statistics_manager.statistics.to_dict()}
 

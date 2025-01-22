@@ -231,7 +231,7 @@ class OptLayer(OptLayerInterface):
         
         for trial_log_id, trial_log in loaded_logs.items():
             assert trial_log.result.complete , f"Trial {trial_log_id} is not finished"
-            score, cost, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.exec_times
+            score, cost, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.reduced_exec_time
             trial = optuna.trial.create_trial(
                 params=trial_log.params,
                 values=self.objectives.select_from(score, cost, exec_time),
