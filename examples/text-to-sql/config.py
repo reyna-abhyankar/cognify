@@ -42,6 +42,6 @@ from cognify.hub.search import default
 search_settings = default.create_search(
     search_type='light',
     n_trials=5,
-    opt_log_dir='ca_school_opt_demo_5_trial_record_xxx',
+    opt_log_dir='ca_school_opt_demo_5_trial_record_xxxxxx',
     evaluator_batch_size=40,
 )

@@ -623,11 +623,7 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
 
         results = []
         n_visited = 0
-        for task_index, pair_idx in tqdm(enumerate(indices), 
-                                         total=len(indices), 
-                                         colour='green',
-                                         leave=False,
-                                         disable=not show_tqdm_bar):
+        for task_index, pair_idx in enumerate(indices):
             if _should_exit():
                 break
 
@@ -653,15 +649,19 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             worker.start()
             all_workers.append(worker)
 
-        if is_dry_run:
-            print("Initializing optimization...")
-        for i in range(len(all_workers) - n_visited):
+
+        for i in tqdm(range(len(all_workers) - n_visited),
+                    colour='green',
+                    leave=False,
+                    disable=not show_tqdm_bar):
             eval_task_result: EvalTaskResult = result_q.get()
             if not eval_task_result.finished:
                 continue
             results.append(eval_task_result)
             if show_process:
                 update_pbar(frac/len(indices), eval_task_result)
+            if is_dry_run:
+                time.sleep(5)
 
         for worker in all_workers:
             worker.join()
@@ -696,6 +696,8 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         reduced_score = self.score_reducer(scores)
         reduced_price = self.price_reducer(prices)
         reduced_exec_time = self.exec_time_reducer(exec_times)
+        if is_dry_run:
+            print(f"Original result before optimization | pass rate: {reduced_score*100:.0f}%, cost@1000: ${(reduced_price+0.004)*1000:.2f}, latency: {(reduced_exec_time+60):.2f}s")
         return EvaluationResult(
             ids=[f"{mode}_{i}" for i in data_ids],
             scores=scores,

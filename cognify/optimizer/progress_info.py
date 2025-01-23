@@ -74,7 +74,7 @@ class ProgressInfo:
         exec_time_text = colored(f"{exec_time:.2f}s" if exec_time is not None else "N/A", color)
         total_opt_cost_text = colored(f"${total_opt_cost:.2f}", color)
 
-        return f"Optimization progress | best score: {score_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text} | Total Optimization Cost: {total_opt_cost_text}"
+        return f"Optimization progress | best pass rate: {score_text}, lowest cost@1000: {cost_text}, lowest latency: {exec_time_text} | Total Optimization Cost: {total_opt_cost_text}"
 
     def update_progress(self, frac: float):
         with ProgressInfo.pbar_lock:
