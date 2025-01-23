@@ -661,7 +661,7 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             if show_process:
                 update_pbar(frac/len(indices), eval_task_result)
             if is_dry_run:
-                time.sleep(5)
+                time.sleep(3.5)
 
         for worker in all_workers:
             worker.join()

@@ -86,7 +86,7 @@ def json_schema_to_pydantic_model(json_schema: dict, file_path: str) -> type[Bas
 
 def _report_quality_impv(new, base):
     impv = _report_quality_impv_raw(new, base)
-    _str = "  Quality improves by {:.0f}%".format(impv)
+    _str = "  Pass rate improves by {:.0f}%".format(impv)
     return _str
 
 def _report_cost_reduction(new, base):
@@ -96,7 +96,7 @@ def _report_cost_reduction(new, base):
 
 def _report_exec_time_reduction(new, base):
     x = _report_exec_time_reduction_raw(new, base + 60)
-    _str = "  Execution time is {:.2f}x original".format(x)
+    _str = "  Average latency is {:.2f}x original".format(x)
     return _str
 
 def _report_quality_impv_raw(new, base):

@@ -302,7 +302,7 @@ class LogManager:
                 if GlobalOptConfig.base_exec_time is not None:
                     print(_report_exec_time_reduction(exec_time, GlobalOptConfig.base_exec_time))
                 # print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, avg exec time: {:.2f} s".format(score, price * 1000, exec_time))
-                print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, Average request execution time: {:.2f}s".format(score, price * 1000, exec_time))
+                print("  Pass rate: {:.0f}%, Cost per 1K invocation: ${:.2f}, Average request latency: {:.2f}s".format(score*100, price * 1000, exec_time))
                 # print("  Applied at: {}".format(trial_log.id))
                 # logger.info("  config saved at: {}".format(log_path))
 
