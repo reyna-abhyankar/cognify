@@ -27,7 +27,7 @@ def run(
         program = load_workflow(config_id=config_id, control_param=control_param)
     print(f"Running the following input: '{input}'...")
     result = program(input)
-    print(f"Output: {result.values()[0]}")
+    print(f"Output: {list(result.values())[0]}")
 
 
 def load_workflow(
