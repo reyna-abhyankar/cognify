@@ -21,6 +21,9 @@ from cognify.hub.cogs.common import CogBase
 from cognify.hub.cogs.utils import build_param
 from cognify.optimizer.plugin import OptimizerSchema, capture_module_from_fs
 from cognify.optimizer.core.flow import TopDownInformation, ModuleTransformTrace
+from cognify.optimizer.progress_info import pbar
+
+from termcolor import colored
 
 logger = logging.getLogger(__name__)
 
@@ -38,15 +41,15 @@ class EvalTaskResult:
     price: float
     exec_time: float
     lm_to_demo: dict
-    finished: bool 
+    finished: bool
 
 def get_unfinished_eval_task_result(task_index: int) -> EvalTaskResult:
     return EvalTaskResult(
         task_index,
-        score=0.0, 
-        price=0.0, 
-        exec_time=0.0, 
-        lm_to_demo={}, 
+        score=0.0,
+        price=0.0,
+        exec_time=0.0,
+        lm_to_demo={},
         finished=False
     )
 
@@ -307,13 +310,14 @@ class EvalTask:
         _be_quiet()
         # directly raise interrupt signal
         _stay_alert()
-        
+
+        sema.acquire()
         try:
             if not isinstance(input, dict):
                 raise ValueError(f"Input from data loader should be a dict, got {input}")
             if not isinstance(label, dict):
                 raise ValueError(f"Label from data loader should be a dict, got {label}")
-            
+
             schema, module_pool = self.load_and_transform()
             workflow_args, workflow_defaults = get_function_kwargs(schema.program)
             # check if all required fields are provided
@@ -322,7 +326,7 @@ class EvalTask:
                     raise ValueError(
                         f"Missing field `{field}` in input when calling the workflow\nAvailable fields: {input.keys()}"
                     )
-            
+
             start_time = time.time()
             end_time = time.time()
             score = 0.0
@@ -353,10 +357,10 @@ class EvalTask:
                 q.put(
                     EvalTaskResult(
                         task_index,
-                        score, 
-                        price, 
-                        exec_time, 
-                        lm_to_demo, 
+                        score,
+                        price,
+                        exec_time,
+                        lm_to_demo,
                         finished=True
                     )
                 )
@@ -425,11 +429,6 @@ class GeneralEvaluatorInterface(ABC):
     ) -> EvaluationResult: ...
 
 
-def _gen_pbar_desc(level, tb, score, price, exec_time):
-    indent = "---" * level + ">"
-    return f"{indent} Evaluation in {tb} | (avg score: {score:.2f}, avg cost@1000: ${price*1000:.2f}, avg execution time: {exec_time:.2f}s)"
-
-
 class EvaluatorPlugin(GeneralEvaluatorInterface):
     def __init__(
         self,
@@ -454,7 +453,7 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             "eval": [evalset, None if not evalset else list(range(len(evalset)))],
             "test": [testset, None if not testset else list(range(len(testset)))],
         }
-        
+
         self.n_parallel = n_parallel
         self.score_reducer = (
             score_reducer if score_reducer is not None else default_reducer
@@ -467,31 +466,26 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         )
 
         self._evaluator = EvalFn(score_fn=evaluator_fn, score_file_path=evaluator_path)
-    
+
     def evaluate(
         self,
         task: EvalTask,
-        show_process: bool = False,
-        pbar_position: int = 0,
-        hierarchy_level: int = 0,
+        frac: float = None,
         **kwargs,
     ):
         return self.get_score(
             mode="train",
             task=task,
-            show_process=show_process,
-            pbar_position=pbar_position,
-            hierarchy_level=hierarchy_level,
+            frac=frac,
         )
 
     def get_score(
         self,
         mode: Literal["train", "eval", "test"],
         task: EvalTask,
-        show_process: bool,
-        pbar_position: int = 0,
-        hierarchy_level: int = 0,
-        keep_bar: bool = False,
+        frac: float = None,
+        show_progress_bar: bool = False,
+        is_dry_run: bool = False,
     ):
         logger.debug(f"sys_path = {sys.path}")
 
@@ -504,65 +498,32 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         sema = mp.Semaphore(n_parallel)
         result_q = mp.Queue()
 
-        total_score, total_cost, total_exec_time, n_success = 0.0, 0.0, 0.0, 0
-        opt_trace = ".".join(task.trace_back)
-
-        def update_pbar(pbar, eval_task_result: EvalTaskResult):
-            nonlocal total_score, total_cost, total_exec_time, n_success
-            n_success += 1
-            total_score += eval_task_result.score
-            total_cost += eval_task_result.price
-            total_exec_time += eval_task_result.exec_time
-            pbar.update(1)
-            pbar.set_description(
-                _gen_pbar_desc(
-                    hierarchy_level,
-                    opt_trace,
-                    total_score / n_success,
-                    total_cost / n_success,
-                    total_exec_time / n_success,
-                )
-            )
 
         results = []
-        with tqdm(
-            total=len(indices),
-            desc=_gen_pbar_desc(hierarchy_level, opt_trace, 0.0, 0.0, 0.0),
-            leave=keep_bar,
-            position=pbar_position,
-        ) as pbar:
-            n_visited = 0
-            for task_index, pair_idx in enumerate(indices):
-                if _should_exit():
-                    break
+        for task_index, pair_idx in enumerate(indices):
+            if _should_exit():
+                break
 
-                # check for result updates
-                while not result_q.empty():
-                    eval_task_result: EvalTaskResult = result_q.get()
-                    n_visited += 1
-                    if not eval_task_result.finished:
-                        continue
-                    results.append(eval_task_result)
-                    if show_process:
-                        update_pbar(pbar, eval_task_result)
+            input, label = data[pair_idx]
+            worker = mp.Process(
+                target=task.evaluate_program,
+                args=(self._evaluator, input, label, task_index, sema, result_q),
+            )
+            worker.start()
+            all_workers.append(worker)
 
-                input, label = data[pair_idx]
-                sema.acquire()
-                worker = mp.Process(
-                    target=task.evaluate_program,
-                    args=(self._evaluator, input, label, task_index, sema, result_q),
-                )
-                worker.start()
-                all_workers.append(worker)
-
-            for i in range(len(all_workers) - n_visited):
-                eval_task_result: EvalTaskResult = result_q.get()
-                if not eval_task_result.finished:
-                    continue
-                results.append(eval_task_result)
-                if show_process:
-                    update_pbar(pbar, eval_task_result)
-
+        for i in tqdm(range(len(all_workers)),
+                    colour='green',
+                    leave=False,
+                    disable=not show_progress_bar):
+            eval_task_result: EvalTaskResult = result_q.get()
+            if not eval_task_result.finished:
+                continue
+            results.append(eval_task_result)
+            if frac is not None:
+                pbar.update_progress(frac/len(indices))
+        
+       
         for worker in all_workers:
             worker.join()
 
@@ -596,6 +557,10 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         reduced_score = self.score_reducer(scores)
         reduced_price = self.price_reducer(prices)
         reduced_exec_time = self.exec_time_reducer(exec_times)
+
+        if is_dry_run:
+            print(f"Original result before optimization | quality: {reduced_score:.2f}, cost@1000: ${reduced_price*1000:.2f}, latency: {reduced_exec_time:.2f}s")
+
         return EvaluationResult(
             ids=[f"{mode}_{i}" for i in data_ids],
             scores=scores,
@@ -667,7 +632,8 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
                     json.load(open(dry_run_path, "r"))
                 )
             else:
-                eval_result = self.get_score(mode, task, show_process=True)
+                print("Dry run with downsampling on the dataset...") # TODO: https://github.com/GenseeAI/cognify/issues/35
+                eval_result = self.get_score(mode, task, show_progress_bar=True)
                 with open(dry_run_path, "w+") as f:
                     json.dump(eval_result.to_dict(), f, indent=4)
             # if user provide a custom prob convertor

@@ -51,6 +51,7 @@ def inspect(
     opt_driver = driver.MultiLayerOptimizationDriver(
         layer_configs=control_param.opt_layer_configs,
         opt_log_dir=control_param.opt_history_log_dir,
+        objectives=control_param.objectives,
         quality_constraint=quality_constraint,
         base_quality=base_quality,
         base_cost=base_cost,

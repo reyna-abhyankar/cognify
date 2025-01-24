@@ -51,12 +51,12 @@ def evaluate(
             aggregated_proposals={},
             trace_back=["evaluate_raw"],
         )
-        result = evaluator.get_score(mode="test", task=eval_task, show_process=True)
-        print(f"----- Testing Raw Program -----")
+        print(f"----- Testing Original Program -----")
+        result = evaluator.get_score(mode="test", task=eval_task, show_progress_bar=True)
         print(f"=========== Evaluation Results ===========")
         print(
-            "  Quality: {:.3f}, Cost per 1K invocation ($): {:.2f} $".format(
-                result.reduced_score, result.reduced_price * 1000
+            "  Quality: {:.3f}, Cost per 1K invocation ($): ${:.2f}, Avg Latency: {:.2f}s".format(
+                result.reduced_score, result.reduced_price * 1000, result.reduced_exec_time
             )
         )
         print("===========================================")
@@ -69,7 +69,7 @@ def evaluate(
     if control_param is None:
         control_param_save_path = os.path.join(opt_result_path, "control_param.json")
         control_param = ControlParameter.from_json_profile(control_param_save_path)
-        
+
     # get dry run result on train set
     dry_run_log_path = os.path.join(
         control_param.opt_history_log_dir, "dry_run_train.json"
@@ -99,6 +99,7 @@ def evaluate(
         layer_configs=control_param.opt_layer_configs,
         opt_log_dir=control_param.opt_history_log_dir,
         quality_constraint=quality_constraint,
+        objectives=control_param.objectives,
         base_quality=base_quality,
         base_cost=base_cost,
         base_exec_time=base_exec_time
@@ -112,5 +113,3 @@ def evaluate(
         with open(save_to, "w") as f:
             json.dump(result.to_dict(), f, indent=4)
     return result
-
-
