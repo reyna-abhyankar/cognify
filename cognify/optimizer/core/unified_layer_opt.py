@@ -539,30 +539,10 @@ class OptimizationLayer:
             logger.error(traceback.format_exc())
             raise
 
-    def _gen_opt_bar_desc(self, score, cost, exec_time, total_opt_cost,):
-        indent = "---" * self.hierarchy_level + ">"
-        color = "green"
-        score = score or 0.0
-        cost = cost or 0.0
-        exec_time = exec_time or 0.0
-        score_text = colored(f"{score:.2f}", color)
-        cost_text = colored(f"${cost*1000:.2f}", color)
-        exec_time_text = colored(f"{exec_time:.2f}s", color)
-        total_opt_cost_text = colored(f"${total_opt_cost:.2f}", color)
-
-        if self.top_down_info.trace_back:
-            opt_trace = " | ".join(self.top_down_info.trace_back)
-            return f"{indent} {self.name} in {opt_trace} | (best score: {score_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text}) | Total Optimization Cost: {total_opt_cost_text}"
-        else:
-            return f"{indent} {self.name} | (best score: {score_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text}) | Total Optimization Cost: {total_opt_cost_text}"
-
     def _optimize(self, base_program: list[Module], frac: float):
         opt_config = self.top_down_info.opt_config
         frac = opt_config.frac
         num_current_trials = len(self.opt_logs)
-
-        def _update_pbar(frac: float):
-            pbar.update_status(self._best_score, self._lowest_cost, self._lowest_exec_time, self.opt_cost)
 
         initial_score = self._best_score if self._best_score is not None else 0.0
         initial_cost = self._lowest_cost if self._lowest_cost is not None else 0.0
@@ -595,7 +575,7 @@ class OptimizationLayer:
                     self.save_ckpt(
                         opt_config.opt_log_path, opt_config.param_save_path
                     )
-                _update_pbar(frac / opt_config.n_trials)
+                pbar.update_status(self._best_score, self._lowest_cost, self._lowest_exec_time, self.opt_cost)
         else:
             with ThreadPoolExecutor(max_workers=opt_config.throughput) as executor:
                 futures = [
@@ -615,7 +595,7 @@ class OptimizationLayer:
                                     opt_config.opt_log_path,
                                     opt_config.param_save_path,
                                 )
-                            _update_pbar(frac / opt_config.n_trials)
+                            pbar.update_status(self._best_score, self._lowest_cost, self._lowest_exec_time, self.opt_cost)
                         if _should_exit() or self._should_stop:
                             executor.shutdown(wait=False, cancel_futures=True)
                             break

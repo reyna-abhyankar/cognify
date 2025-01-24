@@ -30,7 +30,7 @@ class ProgressInfo:
             bar_format=r'{l_bar}{bar}| {n:.2f}/{total_fmt} [{elapsed}<{remaining}]'
         )
         self.total = total
-        self.initial = initial
+        self.current = initial
 
     @staticmethod
     def ask_for_position():
@@ -48,27 +48,26 @@ class ProgressInfo:
         with ProgressInfo.pbar_lock:
             heapq.heappush(ProgressInfo.position_pool, position)
 
-    def _gen_opt_bar_desc(self, score, cost, exec_time, total_opt_cost):
-        # indent = "---" * hierarchy_level + ">"
+    def _gen_opt_bar_desc(self, quality, cost, exec_time, total_optimization_cost):
         color = "green"
-        score = "--" if score == 0.0 else score
-        cost = "--" if cost == 0.0 else cost
-        exec_time = "--" if exec_time == 0.0 else exec_time
-        total_opt_cost = "<$0.01" if total_opt_cost < 0.01 else total_opt_cost
-        score_text = colored(f"{score:.2f}", color)
-        cost_text = colored(f"${cost*1000:.2f}", color)
-        exec_time_text = colored(f"{exec_time:.2f}s", color)
-        total_opt_cost_text = colored(f"${total_opt_cost:.2f}", color)
+        quality = "--" if quality == 0.0 else f'{quality:.2f}'
+        cost = "--" if cost == 0.0 else f'${cost*1000:.2f}'
+        exec_time = "--" if exec_time == 0.0 else f'{exec_time:.2f}s'
+        total_optimization_cost = "<$0.01" if total_optimization_cost < 0.01 else f'${total_optimization_cost:.2f}'
+        quality_text = colored(quality, color)
+        cost_text = colored(cost, color)
+        exec_time_text = colored(exec_time, color)
+        total_optimization_cost_text = colored(total_optimization_cost, color)
 
-        return f"Optimization progress | best quality: {score_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text} | Total Optimization Cost: {total_opt_cost_text}"
+        return f"Optimization progress | best quality: {quality_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text} | Total Optimization Cost: {total_optimization_cost_text}"
 
     def update_progress(self, frac: float):
         with ProgressInfo.pbar_lock:
-            if self.initial + frac > self.total:
-                self.pbar.update(self.total - self.initial)
+            if self.current + frac > self.total:
+                self.pbar.update(self.total - self.current)
             else:
                 self.pbar.update(frac)
-            self.initial += frac
+            self.current += frac
 
     def update_status(self, best_score, lowest_cost, lowest_exec_time, opt_cost):
         with ProgressInfo.pbar_lock:
