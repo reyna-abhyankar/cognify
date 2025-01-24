@@ -51,12 +51,12 @@ def evaluate(
             aggregated_proposals={},
             trace_back=["evaluate_raw"],
         )
-        result = evaluator.get_score(mode="test", task=eval_task, frac=1, show_process=True, show_tqdm_bar=False)
-        print(f"----- Testing Raw Program -----")
+        print(f"----- Testing Original Program -----")
+        result = evaluator.get_score(mode="test", task=eval_task, show_progress_bar=True)
         print(f"=========== Evaluation Results ===========")
         print(
-            "  Quality: {:.3f}, Cost per 1K invocation ($): {:.2f} $".format(
-                result.reduced_score, result.reduced_price * 1000
+            "  Quality: {:.3f}, Cost per 1K invocation ($): ${:.2f}, Avg Latency: {:.2f}s".format(
+                result.reduced_score, result.reduced_price * 1000, result.reduced_exec_time
             )
         )
         print("===========================================")
@@ -99,6 +99,7 @@ def evaluate(
         layer_configs=control_param.opt_layer_configs,
         opt_log_dir=control_param.opt_history_log_dir,
         quality_constraint=quality_constraint,
+        objectives=control_param.objectives,
         base_quality=base_quality,
         base_cost=base_cost,
         base_exec_time=base_exec_time

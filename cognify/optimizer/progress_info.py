@@ -13,10 +13,10 @@ class ProgressInfo:
     heapq.heapify(position_pool)
 
     def __init__(self):
-        # self.pbar = tqdm()
         self.best_score = float('-inf')
         self.lowest_cost = float('inf')
         self.lowest_exec_time = float('inf')
+        self.opt_cost = 0
 
     def init_pbar(self, total, initial, initial_score, initial_cost, initial_exec_time, opt_cost):
         self.pbar_position = ProgressInfo.ask_for_position()
@@ -27,9 +27,8 @@ class ProgressInfo:
             leave=True,
             position=self.pbar_position,
             colour="green",
-            bar_format=r'{l_bar}{bar}| [{elapsed}<{remaining}]'
+            bar_format=r'{l_bar}{bar}| {n:.2f}/{total_fmt} [{elapsed}<{remaining}]'
         )
-
 
     @staticmethod
     def ask_for_position():
@@ -47,15 +46,6 @@ class ProgressInfo:
         with ProgressInfo.pbar_lock:
             heapq.heappush(ProgressInfo.position_pool, position)
 
-    def _gen_pbar_desc(self, level, tb, score, price, exec_time):
-        indent = "---" * level + ">"
-        color = "green"
-        score_text = colored(f"{score:.2f}", color)
-        cost_text = colored(f"${price*1000:.2f}", color)
-        exec_time_text = colored(f"{exec_time:.2f}s", color)
-        return f"{indent} Evaluation in {tb} | (avg score: {score_text}, avg cost@1000: {cost_text}, avg execution time: {exec_time_text})"
-
-
     def _gen_opt_bar_desc(self, score, cost, exec_time, total_opt_cost):
         # indent = "---" * hierarchy_level + ">"
         color = "green"
@@ -67,7 +57,7 @@ class ProgressInfo:
         exec_time_text = colored(f"{exec_time:.2f}s", color)
         total_opt_cost_text = colored(f"${total_opt_cost:.2f}", color)
 
-        return f"Optimization progress | best score: {score_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text} | Total Optimization Cost: {total_opt_cost_text}"
+        return f"Optimization progress | best quality: {score_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text} | Total Optimization Cost: {total_opt_cost_text}"
 
     def update_progress(self, frac: float):
         with ProgressInfo.pbar_lock:
@@ -84,12 +74,15 @@ class ProgressInfo:
             if lowest_exec_time is not None:
                 self.lowest_exec_time = min(lowest_exec_time, self.lowest_exec_time)
 
+            if opt_cost is not None:
+                self.opt_cost = max(opt_cost, self.opt_cost)
+
             best_score_desc = 0.0 if self.best_score == float('-inf') else self.best_score
             lowest_cost_desc = 0.0 if self.lowest_cost == float('inf') else self.lowest_cost
             lowest_exec_time_desc = 0.0 if self.lowest_exec_time == float('inf') else self.lowest_exec_time
 
             self.pbar.set_description(
-                self._gen_opt_bar_desc(best_score_desc, lowest_cost_desc, lowest_exec_time_desc, opt_cost)
+                self._gen_opt_bar_desc(best_score_desc, lowest_cost_desc, lowest_exec_time_desc, self.opt_cost)
             )
             self.pbar.update(0)
 

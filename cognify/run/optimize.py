@@ -29,7 +29,7 @@ def dry_run(script_path, evaluator: EvaluatorPlugin, log_dir):
         aggregated_proposals={},
         trace_back=["dry_run"],
     )
-    print("Analyzing workflow...")
+    print("Dry run with the original workflow...")
     logger.info(
         f"Dry run on train set: {len(evaluator.dataset['train'])} samples for optimizer analysis"
     )
@@ -41,7 +41,7 @@ def dry_run(script_path, evaluator: EvaluatorPlugin, log_dir):
         logger.info(f"Loading existing dry run result at {dry_run_log_path}")
         return dry_run_result
 
-    result = evaluator.get_score("train", eval_task, frac=1, show_process=False, show_tqdm_bar=True, is_dry_run=True)
+    result = evaluator.get_score("train", eval_task, show_progress_bar=True, is_dry_run=True)
     if result.complete:
         with open(dry_run_log_path, "w+") as f:
             json.dump(result.to_dict(), f, indent=4)

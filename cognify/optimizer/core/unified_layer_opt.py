@@ -576,7 +576,6 @@ class OptimizationLayer:
                 initial_cost=initial_cost,
                 initial_exec_time=initial_exec_time,
                 opt_cost=self.opt_cost
-                #desc=self._gen_opt_bar_desc(initial_score, initial_cost, initial_exec_time, self.opt_cost),
             )
 
         counter = 0
@@ -833,9 +832,7 @@ class BottomLevelOptimization(OptimizationLayer):
     def evaluate(self, log_id, new_top_down_info):
         eval_task = EvalTask.from_top_down_info(new_top_down_info)
         self.opt_logs[log_id].eval_task = eval_task.to_dict()
-        eval_result: EvaluationResult = self.evaluator.evaluate(
-            eval_task, new_top_down_info.opt_config.frac, True, self.hierarchy_level + 1
-        )
+        eval_result: EvaluationResult = self.evaluator.evaluate(eval_task, frac=new_top_down_info.opt_config.frac)
         return eval_result
 
     def get_best_trial_log(self) -> BottomLevelTrialLog:
@@ -887,8 +884,7 @@ class BottomLevelOptimization(OptimizationLayer):
                         copy.deepcopy(best_trial_log.eval_task)
                     )
                     evolve_result = self.evaluator.get_score(
-                        mode="eval", task=evolve_eval_task, frac=1, show_process=False,
-                        hierarchy_level=self.hierarchy_level + 1
+                        mode="eval", task=evolve_eval_task,
                     )
                     logger.debug(
                         f"Validation set result: score= {evolve_result.reduced_score:.2f}, cost@1000= {evolve_result.reduced_price*1000:.3f}, exec_time= {evolve_result.reduced_exec_time:.2f}s"
@@ -945,17 +941,11 @@ class BottomLevelOptimization(OptimizationLayer):
             eval_result = self.evaluator.get_score(
                 mode="train",
                 task=eval_task,
-                frac=1,
-                show_process=False,
-                hierarchy_level=self.hierarchy_level + 1,
             )
         else:
             eval_result = self.evaluator.get_score(
                 mode="eval",
                 task=eval_task,
-                frac=1,
-                show_process=False,
-                hierarchy_level=self.hierarchy_level + 1,
             )
         with self._study_lock:
             is_evolved = False
@@ -1001,7 +991,7 @@ class BottomLevelOptimization(OptimizationLayer):
 
         eval_task = EvalTask.from_dict(trial_log.eval_task)
         # run evaluation
-        eval_result = evaluator.get_score(mode='test', task=eval_task, show_process=True, keep_bar=True)
+        eval_result = evaluator.get_score(mode='test', task=eval_task, show_progress_bar=True)
 
         print(f"=========== Evaluation Results ===========")
         if base_quality is not None:

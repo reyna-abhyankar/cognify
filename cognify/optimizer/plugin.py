@@ -32,7 +32,8 @@ class OptimizerSchema:
 
     @classmethod
     def capture(cls, script_path: str) -> "OptimizerSchema":
-        clear_registry()
+        # TODO: https://github.com/GenseeAI/cognify/issues/34
+        # clear_registry()
         capture_module_from_fs(script_path)
         opt_targets = get_registered_opt_modules()
         if not opt_targets:
@@ -70,8 +71,9 @@ def capture_module_from_fs(module_path: str, mode: Literal["config", "score", "w
                 if v.__name__ != '__main__':
                     to_reload.append(v)
     
-        for mod in to_reload:
-            importlib.reload(mod)
+        # TODO: https://github.com/GenseeAI/cognify/issues/34
+        # for mod in to_reload:
+        #     importlib.reload(mod)
 
         # execute current script as a module
         spec.loader.exec_module(module)
