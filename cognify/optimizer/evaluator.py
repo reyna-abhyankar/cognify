@@ -559,7 +559,7 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         reduced_exec_time = self.exec_time_reducer(exec_times)
 
         if is_dry_run:
-            print(f"Original result before optimization | quality: {reduced_score:.2f}, cost@1000: ${reduced_price*1000:.2f}, latency: {reduced_exec_time:.2f}s")
+            print(f"Original result before optimization | quality: {reduced_score:.2f}, cost@1000: ${reduced_price*1000:.2f}, avg latency: {reduced_exec_time:.2f}s")
 
         return EvaluationResult(
             ids=[f"{mode}_{i}" for i in data_ids],
