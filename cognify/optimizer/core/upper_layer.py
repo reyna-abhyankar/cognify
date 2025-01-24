@@ -17,6 +17,7 @@ from cognify.optimizer.core.unified_layer_opt import (
     OptimizationLayer,
     BottomLevelTrialLog,
 )
+from cognify.optimizer.progress_info import pbar
 
 logger = logging.getLogger(__name__)
 
@@ -272,6 +273,8 @@ class UpperLevelOptimization(OptimizationLayer):
         opt_config = self.top_down_info.opt_config
         n_iters = opt_config.n_trials // opt_config.throughput
         for i in range(n_iters):
+            if self._should_stop:
+                pbar.finish()
             if _should_exit() or self._should_stop:
                 break
             self._optimize_SH(base_program)

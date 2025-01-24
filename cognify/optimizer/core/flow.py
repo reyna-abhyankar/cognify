@@ -140,7 +140,7 @@ class OptConfig:
 
         log_dir (str): directory to save logs.
 
-        evolve_interval (int): interval to evolve the dynamic cogs.
+        evolve_interval (int): interval to evolve the dynamic cogs (e.g., how frequently should few-shot examples be updated)
 
         opt_log_path (str): path to save optimization logs.
 

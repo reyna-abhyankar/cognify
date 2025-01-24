@@ -61,6 +61,9 @@ class ProgressInfo:
 
         return f"Optimization progress | best quality: {quality_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text} | Total Optimization Cost: {total_optimization_cost_text}"
 
+    def finish(self):
+        self.update_progress(self.total - self.current)
+
     def update_progress(self, frac: float):
         with ProgressInfo.pbar_lock:
             if self.current + frac > self.total:

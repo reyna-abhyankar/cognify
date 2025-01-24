@@ -561,6 +561,8 @@ class OptimizationLayer:
         counter = 0
         if opt_config.throughput == 1:
             for _ in range(opt_config.n_trials):
+                if self._should_stop:
+                    pbar.finish()
                 if _should_exit() or self._should_stop:
                     break
                 result = self._optimize_iteration(base_program, frac / opt_config.n_trials)
@@ -596,6 +598,8 @@ class OptimizationLayer:
                                     opt_config.param_save_path,
                                 )
                             pbar.update_status(self._best_score, self._lowest_cost, self._lowest_exec_time, self.opt_cost)
+                        if self._should_stop:
+                            pbar.finish()
                         if _should_exit() or self._should_stop:
                             executor.shutdown(wait=False, cancel_futures=True)
                             break
