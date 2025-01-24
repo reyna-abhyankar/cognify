@@ -17,6 +17,7 @@ class ProgressInfo:
         self.lowest_cost = float('inf')
         self.lowest_exec_time = float('inf')
         self.opt_cost = 0
+        self.finished = False
 
     def init_pbar(self, total, initial, initial_score, initial_cost, initial_exec_time, opt_cost):
         self.pbar_position = ProgressInfo.ask_for_position()
@@ -59,18 +60,20 @@ class ProgressInfo:
         exec_time_text = colored(exec_time, color)
         total_optimization_cost_text = colored(total_optimization_cost, color)
 
-        return f"Optimization progress | best quality: {quality_text}, lowest cost@1000: {cost_text}, lowest exec time: {exec_time_text} | Total Optimization Cost: {total_optimization_cost_text}"
+        return f"Optimization progress | best quality: {quality_text}, lowest cost@1000: {cost_text}, lowest avg latency: {exec_time_text} | Total Optimization Cost: {total_optimization_cost_text}"
 
     def finish(self):
         self.update_progress(self.total - self.current)
+        self.finished = True
 
     def update_progress(self, frac: float):
         with ProgressInfo.pbar_lock:
-            if self.current + frac > self.total:
-                self.pbar.update(self.total - self.current)
-            else:
-                self.pbar.update(frac)
-            self.current += frac
+            if not self.finished:
+                if self.current + frac > self.total:
+                    self.pbar.update(self.total - self.current)
+                else:
+                    self.pbar.update(frac)
+                self.current += frac
 
     def update_status(self, best_score, lowest_cost, lowest_exec_time, opt_cost):
         with ProgressInfo.pbar_lock:
@@ -93,7 +96,6 @@ class ProgressInfo:
             self.pbar.set_description(
                 self._gen_opt_bar_desc(best_score_desc, lowest_cost_desc, lowest_exec_time_desc, self.opt_cost)
             )
-            self.pbar.update(0)
 
     def release(self, hierarchy_level):
         if hierarchy_level == 0:
