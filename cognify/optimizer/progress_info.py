@@ -29,6 +29,8 @@ class ProgressInfo:
             colour="green",
             bar_format=r'{l_bar}{bar}| {n:.2f}/{total_fmt} [{elapsed}<{remaining}]'
         )
+        self.total = total
+        self.initial = initial
 
     @staticmethod
     def ask_for_position():
@@ -49,9 +51,10 @@ class ProgressInfo:
     def _gen_opt_bar_desc(self, score, cost, exec_time, total_opt_cost):
         # indent = "---" * hierarchy_level + ">"
         color = "green"
-        score = score or 0.0
-        cost = cost or 0.0
-        exec_time = exec_time or 0.0
+        score = "--" if score == 0.0 else score
+        cost = "--" if cost == 0.0 else cost
+        exec_time = "--" if exec_time == 0.0 else exec_time
+        total_opt_cost = "<$0.01" if total_opt_cost < 0.01 else total_opt_cost
         score_text = colored(f"{score:.2f}", color)
         cost_text = colored(f"${cost*1000:.2f}", color)
         exec_time_text = colored(f"{exec_time:.2f}s", color)
@@ -61,7 +64,11 @@ class ProgressInfo:
 
     def update_progress(self, frac: float):
         with ProgressInfo.pbar_lock:
-            self.pbar.update(frac)
+            if self.initial + frac > self.total:
+                self.pbar.update(self.total - self.initial)
+            else:
+                self.pbar.update(frac)
+            self.initial += frac
 
     def update_status(self, best_score, lowest_cost, lowest_exec_time, opt_cost):
         with ProgressInfo.pbar_lock:

@@ -21,9 +21,10 @@ def run(
 ):
     if config_id == 'Original':
         program = OptimizerSchema.capture(workflow).program
+        print("Running the provided input on original workflow")
     else:
         program = load_workflow(config_id=config_id, control_param=control_param)
-    print(f"Running the following input: '{input}' ...")
+        print("Running the provided input on optimized workflow")
     result = program(input)
     print(f"Output: {list(result.values())[0]}")
 
