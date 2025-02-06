@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognify-ai"
-version = "0.1.1"
+version = "0.1.2"
 description = "The Automated Optimizer for GenAI Workflows"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -17,44 +17,22 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "aiohttp",
     "devtools",
-    "anthropic==0.36.2",
-    "bert-score==0.3.13",
-    "cloudpickle",
     "datasets",
-    "debugpy",
-    "ipywidgets",
-    "docutils",
-    "dspy-ai>=2.5.32",
-    "fastapi",
-    "fireworks-ai==0.15.4",
-    "graphviz==0.20.3",
-    "huggingface-hub==0.24.5",
+    "dspy-ai==2.5.32",
+    "graphviz",
     "httpx==0.27.2",
-    "langchain>=0.3.4",
-    "langchain-anthropic==0.2.3",
-    "langchain-aws==0.2.2",
-    "langchain-core>=0.3.20",
-    "langchain-fireworks==0.2.1",
-    "langchain-google-genai==2.0.1",
+    "langchain==0.3.4",
+    "langchain-core==0.3.20",
     "langchain-openai==0.2.3",
-    "langchain-text-splitters==0.3.0",
-    "langchain-together==0.2.0",
-    "langchainhub==0.1.20",
-    "langdetect==1.0.9",
-    "langgraph==0.2.39",
-    "langgraph-checkpoint==2.0.1",
     "litellm==1.51.0",
-    "matplotlib==3.9.1.post1",
-    "numpy==1.26.4",
+    "numpy",
     "openai==1.52.0",
     "opentelemetry-api",
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp-proto-http",
     "optuna==3.6.1",
     "optunahub==0.1.0b0",
-    "pandas",
     "datamodel-code-generator",
     "astunparse",
     "termcolor"
