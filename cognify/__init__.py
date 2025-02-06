@@ -1,4 +1,6 @@
-print("Loading workflow...")
+import multiprocessing as mp
+if mp.get_start_method(allow_none=True) != "spawn":
+    print("Loading workflow...")
 
 from .llm import (
     Model,
