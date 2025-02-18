@@ -53,7 +53,7 @@ Within the `config.py`, you should define the following:
 
 With these parameters, Cognify optimizes your workflow by iteratively experimenting with various combinations of tuning methods (we call them “*cogs*”) applied across workflow components and assessing the effectiveness of these combinations based on the quality of the final output using the user-provided sample dataset and evaluator. This process continues until Cognify hits the user-specified maximum iteration numbers (in `config.py`).
 
-The result of this process is a set of optimized workflow versions with different quality-cost combinations on the [Pareto frontier](https://en.wikipedia.org/wiki/Pareto_front) among all the iterations.
+The result of this process is a set of optimized workflow versions with different quality-cost-latency combinations on the [Pareto frontier](https://en.wikipedia.org/wiki/Pareto_front) among all the iterations.
 You can inspect the optimizations applied in these output files 
 You can evaluate these optimized versions with a test dataset:
 
