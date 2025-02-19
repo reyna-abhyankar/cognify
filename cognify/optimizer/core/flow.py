@@ -1,3 +1,16 @@
+"""
+This module provides data structure for 
+
+Optimization configuration:
+    - PatienceConfig
+    - OptConfig
+    - LayerConfig
+
+Information passing:
+    - ModuleTransformTrace
+    - TopDownInformation
+    - TrialLog
+"""
 import os
 import sys
 from typing import Optional, Tuple, Type, Iterable
@@ -208,7 +221,7 @@ class TopDownInformation:
 
     # optimization meta inherit from the previous level
     all_params: Optional[dict[str, CogBase]]
-    module_ttrace: Optional[ModuleTransformTrace]
+    module_transformation_trace: Optional[ModuleTransformTrace]
     current_module_pool: Optional[dict[str, Module]]
 
     # optimization configs
@@ -240,10 +253,10 @@ class TopDownInformation:
             capture_module_from_fs(self.script_path)
             self.current_module_pool = {m.name: m for m in get_registered_opt_modules()}
 
-        if self.module_ttrace is None:
+        if self.module_transformation_trace is None:
             name_2_type = {m.name: type(m) for m in self.current_module_pool.values()}
-            self.module_ttrace = ModuleTransformTrace(name_2_type)
-        self.module_ttrace.mflatten()
+            self.module_transformation_trace = ModuleTransformTrace(name_2_type)
+        self.module_transformation_trace.mflatten()
 
 
 class TrialLog:

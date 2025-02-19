@@ -10,9 +10,8 @@ from cognify.optimizer.evaluator import (
     EvalTask,
 )
 from cognify.optimizer.core.flow import TrialLog, TopDownInformation, LayerConfig
-from cognify.optimizer.core.opt_layer import OptLayer, get_pareto_front, _log_optimization_results
+from cognify.optimizer.core.opt_layer import OptLayer, get_pareto_front, _log_optimization_results, filter_by_constraint
 from cognify.optimizer.control_param import SelectedObjectives
-from cognify.optimizer.core.upper_layer import UpperLevelOptimization, LayerEvaluator
 from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv, _report_latency_reduction
 from cognify._tracing import trace_quality_improvement, trace_cost_improvement, trace_latency_improvement
 from cognify.optimizer.core.common_stats import CommonStats
@@ -104,7 +103,7 @@ class MultiLayerOptimizationDriver:
         self.build_tiered_optimization(evaluator)
         logger.info("----------------- Start Optimization -----------------")
         top_layer = self.opt_layer_factories[0]()
-        pareto_frontier = top_layer.easy_optimize(
+        pareto_frontier = top_layer.exposed_optimize(
             script_path=script_path,
             script_args=script_args,
             other_python_paths=other_python_paths,
@@ -130,33 +129,6 @@ class MultiLayerOptimizationDriver:
             raise ValueError(
                 f"Cannot extract trial id from the log file {config_id}.cog"
             )
-
-    def _find_config_log_path(self, trial_id: str) -> str:
-        opt_config = self.layer_configs[0].opt_config
-        opt_config.finalize()
-        tdi = TopDownInformation(
-            opt_config=opt_config,
-            all_params=None,
-            module_ttrace=None,
-            current_module_pool=None,
-            script_path=None,
-            script_args=None,
-            other_python_paths=None,
-        )
-
-        top_layer = self.opt_layers[0]
-        top_layer.load_opt_log(opt_config.opt_log_path)
-        top_layer.top_down_info = tdi
-        all_configs = top_layer.get_all_candidates()
-        config_path = None
-
-        for opt_log, path in all_configs:
-            if opt_log.id == trial_id:
-                config_path = path
-                break
-        else:
-            raise ValueError(f"Config {trial_id} not found in the optimization log.")
-        return config_path
 
     def evaluate(
         self,
@@ -198,24 +170,14 @@ class MultiLayerOptimizationDriver:
         trial_log = opt_logs[trial_id]
 
         eval_task = EvalTask.from_dict(trial_log.eval_task_dict)
-        schema, old_name_2_new_module = eval_task.load_and_transform()
-        return schema, old_name_2_new_module
+        schema, _ = eval_task.load_and_transform()
+        return schema
 
     def inspect(self, dump_details: bool = False):
         opt_logs = self._load_from_file()
 
-        cancidates = []
-        for log_id, log in opt_logs.items():
-            if not log.finished:
-                continue
-            # if not meet the quality constraint, skip
-            if (
-                CommonStats.quality_constraint is not None
-                and log.score < CommonStats.quality_constraint
-            ):
-                continue
-            cancidates.append(log)
-        pareto_frontier = get_pareto_front(cancidates)
+        candidates = filter_by_constraint(opt_logs)
+        pareto_frontier = get_pareto_front(candidates)
         _log_optimization_results(pareto_frontier)
 
         # dump frontier details to file
@@ -227,13 +189,12 @@ class MultiLayerOptimizationDriver:
         param_log_dir = os.path.join(self.opt_log_dir, "optimized_workflow_details")
         if not os.path.exists(param_log_dir):
             os.makedirs(param_log_dir, exist_ok=True)
-        for i, (trial_log, opt_path) in enumerate(frontier):
+        for i, trial_log in enumerate(frontier):
             trial_log: TrialLog
             dump_path = os.path.join(param_log_dir, f"Optimization_{i+1}.cog")
-            trans = EvalTask.from_dict(trial_log.eval_task_dict).show_opt_trace()
+            cog_transformations = EvalTask.from_dict(trial_log.eval_task_dict).show_opt_trace()
             details = f"Trial - {trial_log.id}\n"
             details += f"Optimized for {str(CommonStats.objectives)}\n"
-            details += f"Log at: {opt_path}\n"
             if CommonStats.base_quality is not None:
                 quality_improvement = _report_quality_impv(trial_log.score, CommonStats.base_quality)
                 details += ("  Quality improves by {:.0f}%\n".format(quality_improvement))
@@ -247,7 +208,7 @@ class MultiLayerOptimizationDriver:
                 details += ("  Execution time is {:.2f}x original".format(exec_time_improvement))
                 trace_latency_improvement(exec_time_improvement)
             details += f"Quality: {trial_log.score:.3f}, Cost per 1K invocation: ${trial_log.price * 1000:.2f}, Execution time: {trial_log.exec_time:.2f}s \n"
-            details += trans
+            details += cog_transformations
             with open(dump_path, "w") as f:
                 f.write(details)
 
@@ -256,9 +217,7 @@ class MultiLayerOptimizationDriver:
         """Recursively load all optimization logs
         """
         root_log = self.layer_configs[0].opt_config
-        root_log.finalize()
         _log_dir_stack = [root_log.log_dir]
-        leaf_layer_name = self.layer_configs[-1].layer_name
         opt_logs = {}
         
         while _log_dir_stack:
@@ -271,7 +230,6 @@ class MultiLayerOptimizationDriver:
                 opt_trace = json.load(f)
                 
                 for log_id, log in opt_trace.items():
-                    layer_instance = log_id.rsplit("_", 1)[0]
                     layer_name = log["layer_name"]
                     trial_number = log_id.rsplit("_", 1)[-1]
                     sub_layer_log_dir = os.path.join(log_dir, f"{layer_name}_trial_{trial_number}")

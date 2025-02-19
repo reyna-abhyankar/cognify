@@ -1,3 +1,12 @@
+"""
+Optimization Layer Module
+
+This module implements the common routine for all optimization layers. Each follows a loop of:
+    1. Propose a new set of parameters based on the current observation set
+    2. Optimize / Evaluate the proposed parameters at the next level (another opt-layer or the real evaluator)
+    3. Update the observation set with the evaluation result
+"""
+
 import os
 import json
 from typing import (
@@ -55,19 +64,38 @@ from cognify.optimizer.core.common_stats import CommonStats
 logger = logging.getLogger(__name__)
 
 
+# Tag the quality constraint meta data in an optuna trial
+# will be retrived when proposing new trials
 qc_identifier = "_#cognify_quality_constraint"
 
 
 def get_quality_constraint(trial: optuna.trial.FrozenTrial):
     return trial.user_attrs.get(qc_identifier, (1,))
 
-optimize_directions = [
-    "maximize", # quality
-    "minimize", # cost
-    "minimize", # exec time
-]
         
 class OptLayerInterface(GeneralEvaluatorInterface):
+    """ 
+    Interface for an optimization layer in the evaluator.
+
+    Attributes:
+        name (str): Name of the optimization layer.
+        dedicate_params (list[CogBase]): A list of parameters dedicated to 
+            pre-defined modules. Ensure that `module_name` is correctly set.
+        universal_params (list[CogBase]): A list of parameters that will be 
+            broadcasted to all modules, ignoring the `module_name` field.
+        target_modules (list[str]): If provided, only these modules will be 
+            optimized. This takes higher priority than dedicated parameters.
+        
+        hierarchy_level (int): The hierarchy level of the optimization layer. 
+            0 means outer-most
+        next_layer_factory (Callable[[], GeneralEvaluatorInterface]): current
+            layer will call this factory to create the next layer as an evalautor
+        is_leaf (bool): If the layer is a leaf layer, i.e., the evaluator will 
+            execute the workflow.
+            
+        opt_logs (dict[str, TrialLog]): A dictionary of optimization logs.
+    """
+
     name: str
     dedicate_params: list[CogBase]
     universal_params: list[CogBase]
@@ -172,6 +200,20 @@ def get_pareto_front(candidates: list[TrialLog]) -> list[TrialLog]:
     ]
     return pareto_frontier
 
+def filter_by_constraint(opt_logs: dict[str, TrialLog]) -> list[TrialLog]:
+    candidates = []
+    for log_id, log in opt_logs.items():
+        if not log.finished:
+            continue
+        # if not meet the quality constraint, skip
+        if (
+            CommonStats.quality_constraint is not None
+            and log.score < CommonStats.quality_constraint
+        ):
+            continue
+        candidates.append(log)
+    return candidates
+
     
 class OptLayer(OptLayerInterface):
     def __init__(
@@ -193,15 +235,6 @@ class OptLayer(OptLayerInterface):
             name: name of the optimization layer
 
             evaluator: the evaluator that will be used to evaluate the proposal
-
-            dedicate_params: a list of params that is dedicated to pre-defined modules
-                need to set `module_name` correctly
-
-            universal_params: a list of params that will be broadcasted to all modules
-                will ignore `module_name` field
-
-            target_modules: if provided, only the modules in this list will be optimized
-                this has higher priority than dedicated params
         """
         self.name = name
         self.opt_config = opt_config
@@ -251,19 +284,19 @@ class OptLayer(OptLayerInterface):
             self._optimize()
             
             logger.debug(f"Optimization {self.name} finished")
-            self._save_ckpt()
+            self._save_opt_ckpt()
         result = self._get_layer_opt_result()
         return result
     
     def _get_layer_opt_result(self):
         # Analysis optimization result
-        candidates = self.get_all_candidates()
+        candidates = filter_by_constraint(self.opt_logs)
         pareto_frontier = get_pareto_front(candidates=candidates)
         if self.hierarchy_level == 0:
             _log_optimization_results(pareto_frontier)
         return pareto_frontier
         
-    def _save_ckpt(self):
+    def _save_opt_ckpt(self):
         # save opt logs
         opt_logs_json_obj = {}
         for k, v in self.opt_logs.items():
@@ -280,27 +313,11 @@ class OptLayer(OptLayerInterface):
         dump_params(params, self.top_down_info.opt_config.param_save_path)
 
         
-    def get_all_candidates(self):
-        cancidates = []
-        for log_id, log in self.opt_logs.items():
-            if not log.finished:
-                continue
-            # if not meet the quality constraint, skip
-            if (
-                CommonStats.quality_constraint is not None
-                and log.score < CommonStats.quality_constraint
-            ):
-                continue
-            cancidates.append(log)
-        return cancidates
-    
     def add_constraint(self, score, trial: optuna.trial.Trial):
-        # Soft constraint, if score is lower than the quality constraint, reject it
+        # Soft constraint, if score is lower than the quality constraint, consider it in the bad group
         if CommonStats.quality_constraint is not None:
             constraint_result = (CommonStats.quality_constraint - score,)
             trial.set_user_attr(qc_identifier, constraint_result)
-            # NOTE: add system attr at loading time
-            # trial.set_system_attr(_base._CONSTRAINTS_KEY, constraint_result)
         
     def _load_opt_ckpt(self):
         # Load logs from file
@@ -311,7 +328,7 @@ class OptLayer(OptLayerInterface):
             self.opt_logs[trial_log_id] = trial_log
             self.opt_cost += trial_log.eval_cost
             
-        candidates = self.get_all_candidates()
+        candidates = filter_by_constraint(self.opt_logs)
         if candidates:
             self._local_best_score = max([log.score for log, _ in candidates])
             self._local_lowest_cost = min([log.price for log, _ in candidates])
@@ -391,7 +408,7 @@ class OptLayer(OptLayerInterface):
             allowed_lm_names = set()
             for new_module in module_pool.values():
                 old_name, new_modules = (
-                    self.top_down_info.module_ttrace.get_derivatives_of_same_type(
+                    self.top_down_info.module_transformation_trace.get_derivatives_of_same_type(
                         new_module
                     )
                 )
@@ -512,7 +529,7 @@ class OptLayer(OptLayerInterface):
         self,
         trial_params: dict[str, Any],
     ) -> tuple[list[Module], ModuleTransformTrace]:
-        trace_for_next_level = copy.deepcopy(self.top_down_info.module_ttrace)
+        trace_for_next_level = copy.deepcopy(self.top_down_info.module_transformation_trace)
         program_copy = copy.deepcopy(self.base_program)
         
         opt_target_lms = Module.all_with_predicate(
@@ -607,10 +624,9 @@ class OptLayer(OptLayerInterface):
         
         # set log path to next level opt
         current_layer_config = self.top_down_info.opt_config
-        current_level_log_dir = current_layer_config.log_dir
         trial_number = trial_log_id.rsplit("_", 1)[-1]
         next_log_dir = os.path.join(
-            current_level_log_dir,
+            current_layer_config.log_dir,
             f"{self.name}_trial_{trial_number}",
         )
         next_opt_config = OptConfig._set_log_dir_for_next(log_dir=next_log_dir)
@@ -619,7 +635,7 @@ class OptLayer(OptLayerInterface):
         next_level_info = TopDownInformation(
             opt_config=next_opt_config,
             all_params=self.top_down_info.all_params.copy(),  # params from upper-levels will not be changed
-            module_ttrace=new_trace,
+            module_transformation_trace=new_trace,
             current_module_pool={m.name: m for m in new_program},
             script_path=self.top_down_info.script_path,
             script_args=self.top_down_info.script_args,
@@ -664,7 +680,7 @@ class OptLayer(OptLayerInterface):
         score, price, exec_time = eval_result.reduced_score, eval_result.reduced_price, eval_result.reduced_exec_time
         with self._study_lock:
             self._add_constraint(score, trial)
-            frozen_trial = self.study.tell(trial, CommonStats.objectives.select_from[score, price, exec_time])
+            frozen_trial = self.study.tell(trial, CommonStats.objectives.select_from(score, price, exec_time))
             is_evolved = False
             for params in self.params.values():
                 for param in params:
@@ -767,7 +783,7 @@ class OptLayer(OptLayerInterface):
                     log_id, result = f.result()
                     if result and result.complete:
                         pbar.update_status(self._local_best_score, self._local_lowest_cost, self._local_fastest_exec_time, self.opt_cost)
-                        self._save_ckpt()
+                        self._save_opt_ckpt()
                         visited.add(f)
                         if self.if_early_stop(result):
                             executor.shutdown(wait=False, cancel_futures=True)
@@ -784,18 +800,22 @@ class OptLayer(OptLayerInterface):
                 if f not in visited and f.done() and not f.cancelled():
                     log_id, result = f.result()
                     if result and result.complete:
-                        self._save_ckpt()
+                        self._save_opt_ckpt()
     
-    def easy_optimize(
+    def exposed_optimize(
         self,
         script_path: str,
         script_args: Optional[list[str]] = None,
         other_python_paths: Optional[list[str]] = None,
     ) -> list[tuple[TrialLog, str]]:
+        """Trigger the entire optimization by calling this at the out-most layer
+        """
+        if self.hierarchy_level != 0:
+            raise ValueError("Should only call this method at the out-most layer")
         tdi = TopDownInformation(
             opt_config=None,
             all_params=None,
-            module_ttrace=None,
+            module_transformation_trace=None,
             current_module_pool=None,
             script_path=script_path,
             script_args=script_args,

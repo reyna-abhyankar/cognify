@@ -4,6 +4,7 @@ from typing import Union, Callable
 import logging
 import shutil
 
+from cognify.optimizer.core.flow import TrialLog
 from cognify._signal import _should_exit, _init_exit_gracefully
 from cognify.optimizer.control_param import ControlParameter
 from cognify.optimizer.core import driver
@@ -79,7 +80,7 @@ def optimize(
     val_set=None,
     resume: bool = False,
     force: bool = False,
-):
+) -> list[TrialLog]:
     # Validate and prepare the pipeline
     assert (
         eval_fn is not None or eval_path is not None
