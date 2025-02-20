@@ -13,7 +13,7 @@ Simple Budget Limit Settings
 Each layer in the optimization hierarchy can independently control the number of trials (evaluations) and the level of parallelism by configuring the ``OptConfig``:
 
 - **n_trials**: Sets the maximum number of optimization iterations. This value determines the total budget for each **invocation** of the optimizer routine in that layer.
-- **throughput**: Controls the level of parallelism by specifying the number of proposals to evaluate concurrently. Adjusting throughput can speed up optimization but also impacts resource consumption.
+- **num_parallel_proposal**: Controls the level of parallelism by specifying the number of proposals to evaluate concurrently. Adjusting this level can speed up optimization but also impacts resource consumption.
 
 Example:
 
@@ -23,7 +23,7 @@ Example:
 
    layer_opt_config = flow.OptConfig(
       n_trials=10,    # each invocation of this layer will run 10 trials
-      throughput=2,   # 2 proposals running in parallel
+      num_parallel_proposal=2,   # 2 proposals running in parallel
    )
 
    # Apply this configuration in a layer
@@ -48,7 +48,7 @@ SH Breakdown
 
 When ``use_SH_allocation=True`` is set, the optimizer applies the following process:
 
-1. **Initial Pool**: SH starts by proposing a set number of configurations (`throughput`).
+1. **Initial Pool**: SH starts by proposing a set number of configurations (`num_parallel_proposal`).
 2. **Additional Budget Per Round**: In each round, a fixed budget (`n_trials`) is added to each remaining configuration, allowing more resources for further evaluation.
 3. **Prune the Pool**: After each round, the least promising configurations (by default the bottom half) are removed from the pool.
 4. **Iterate Until Convergence**: This cycle continues, with each remaining configuration receiving the same budget increment, until only the entire pool is exhausted.
@@ -67,7 +67,7 @@ Example Configuration
 
    opt_config_upper = flow.OptConfig(
       n_trials=6,             # Total trials to try per invocation
-      throughput=2,           # Initial pool size
+      num_parallel_proposal=2,           # Initial pool size
       use_SH_allocation=True  # Enable Successive Halving
    )
 

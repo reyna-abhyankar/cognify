@@ -49,5 +49,5 @@ def load_workflow(
         opt_log_dir=control_param.opt_history_log_dir,
         objectives=control_param.objectives,
     )
-    schema, _ = opt_driver.load(config_id)
+    schema = opt_driver.load(config_id)
     return schema.program

@@ -277,7 +277,9 @@ class EvalTask:
         assert schema.opt_target_modules, "No module to optimize"
         return schema
 
-    def load_and_transform(self):
+    def load_and_transform(self) -> Tuple[OptimizerSchema, dict[str, Module]]:
+        """Load workflow into memory and transform it with the aggregated proposals
+        """
         schema = self.get_program_schema()
         module_pool = {m.name: m for m in schema.opt_target_modules}
 
@@ -414,8 +416,8 @@ class EvalTask:
             args=tdi.script_args,
             other_python_paths=tdi.other_python_paths,
             all_params=tdi.all_params,
-            module_name_paths=tdi.module_ttrace.module_name_paths,
-            aggregated_proposals=tdi.module_ttrace.aggregated_proposals,
+            module_name_paths=tdi.module_transformation_trace.module_name_paths,
+            aggregated_proposals=tdi.module_transformation_trace.aggregated_proposals,
             trace_back=tdi.trace_back,
         )
 
