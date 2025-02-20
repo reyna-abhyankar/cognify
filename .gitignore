@@ -180,6 +180,8 @@ local_testing/
 # secrets
 secrets.toml
 examples/**/*.json
+!examples/finrobot/agent_profiles.json
+OAI_CONFIG_LIST
 *.cog
 cache/
 local_cache/
