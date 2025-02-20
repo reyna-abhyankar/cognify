@@ -190,7 +190,7 @@ class MultiLayerOptimizationDriver:
             self.dump_frontier_details(pareto_frontier)
         return
 
-    def dump_frontier_details(self, frontier):
+    def dump_frontier_details(self, frontier: list[TrialLog]):
         param_log_dir = os.path.join(self.opt_log_dir, "optimized_workflow_details")
         if not os.path.exists(param_log_dir):
             os.makedirs(param_log_dir, exist_ok=True)

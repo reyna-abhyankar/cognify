@@ -37,10 +37,54 @@ def load_data_minor():
 # Optimizer Set Up
 #================================================================
 
-from cognify.hub.search import default
+# from cognify.hub.search import default
 
-search_settings = default.create_search(
-    search_type='light',
-    n_trials=5,
+# search_settings = default.create_search(
+#     search_type='light',
+#     n_trials=5,
+#     evaluator_batch_size=10,
+# )
+
+
+from cognify.optimizer.core import driver, flow
+from cognify.hub.cogs import reasoning
+from cognify.hub.cogs.common import NoChange
+from cognify.hub.cogs.fewshot import LMFewShot
+from cognify.hub.cogs.reasoning import ZeroShotCoT
+from cognify.optimizer.control_param import ControlParameter, SelectedObjectives
+
+reasoning_param = reasoning.LMReasoning([NoChange(), ZeroShotCoT()])
+outer_opt_config = flow.OptConfig(
+    n_trials=16,
+    throughput=4,
+    use_SH_allocation=True,
+    # use_HB_allocation=True,
+    initial_step_budget=4,
+)
+params = [reasoning_param]
+outer_loop_config = driver.LayerConfig(
+    layer_name="outer",
+    universal_params=params,
+    opt_config=outer_opt_config,
+)
+
+
+few_shot_params = LMFewShot(2)
+inner_opt_config = flow.OptConfig(
+    n_trials=0,
+    patience=flow.PatienceConfig(0.02,0.05,0.05,2)
+)
+inner_loop_config = driver.LayerConfig(
+    layer_name="inner",
+    universal_params=[reasoning_param],
+    opt_config=inner_opt_config,
+)
+
+# ================= Overall Control Parameter =================
+optimize_control_param = ControlParameter(
+    opt_layer_configs=[outer_loop_config, inner_loop_config],
+    objectives=SelectedObjectives(True, True, True),
+    opt_history_log_dir="test_SH",
     evaluator_batch_size=10,
+    quality_constraint=0.99,
 )
