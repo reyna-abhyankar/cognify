@@ -770,7 +770,7 @@ class OptLayer(OptLayerInterface):
         return self._converged
             
         
-    def _optimize_normal(self):
+    def _optimize_basic(self):
         opt_config = self.top_down_info.opt_config
         
         with ThreadPoolExecutor(max_workers=opt_config.num_parallel_proposal) as executor:
@@ -803,10 +803,10 @@ class OptLayer(OptLayerInterface):
                     if result and result.complete:
                         self._save_opt_ckpt()
                         
-    def _optimize_SH(self):
+    def _optimize_static_SH(self):
         opt_config = self.top_down_info.opt_config
         
-        bucket_size = opt_config.throughput
+        bucket_size = opt_config.alloc_strategy.bucket_size
         n_bucket_iter = math.ceil(opt_config.n_trials / bucket_size)
         for i in range(n_bucket_iter):
             # prepare bucket
@@ -818,10 +818,9 @@ class OptLayer(OptLayerInterface):
             
             # optimize with SH
             _sh_routine = SuccessiveHalving(
-                prune_rate=opt_config.prune_rate,
-                # num_SH_iter=len(next_layer_tdis), # simple heuristic to allow exhaustive search
-                num_SH_iter=opt_config.prune_rate, # follow paper
-                initial_step_budget=opt_config.initial_step_budget,
+                prune_rate=opt_config.alloc_strategy.prune_rate,
+                num_SH_iter=opt_config.alloc_strategy.prune_rate,
+                initial_step_budget=opt_config.alloc_strategy.initial_step_budget,
                 hierarchy_level=self.hierarchy_level,
                 next_layer_factory=self.next_layer_factory,
                 selected_runs=next_layer_tdis,
@@ -839,18 +838,18 @@ class OptLayer(OptLayerInterface):
     
     def _optimize_HB(self):
         opt_config = self.top_down_info.opt_config
-        
-        s_max = int(math.log(opt_config.initial_step_budget, opt_config.prune_rate))
+        alloc_strategy = opt_config.alloc_strategy
+        s_max = int(math.log(alloc_strategy.initial_step_budget, alloc_strategy.prune_rate))
         for s in range(s_max, -1, -1):
-            bucket_size = int((s_max + 1) / (s + 1) * opt_config.prune_rate ** s)
+            bucket_size = int((s_max + 1) / (s + 1) * alloc_strategy.prune_rate ** s)
             # prepare bucket
             proposals = [self._propose() for _ in range(bucket_size)]
             next_layer_tdis = []
             for _, program, new_trace, log_id in proposals:
                 next_layer_tdis.append(self._prepare_eval_task(program, new_trace, log_id))
-            initial_budget = int(opt_config.initial_step_budget * opt_config.prune_rate ** -s)
+            initial_budget = int(alloc_strategy.initial_step_budget * alloc_strategy.prune_rate ** -s)
             _sh_routine = SuccessiveHalving(
-                prune_rate=opt_config.prune_rate,
+                prune_rate=alloc_strategy.prune_rate,
                 num_SH_iter=s+1,
                 initial_step_budget=initial_budget,
                 hierarchy_level=self.hierarchy_level,
@@ -865,13 +864,13 @@ class OptLayer(OptLayerInterface):
                     self._save_opt_ckpt()
                         
     def _optimize(self):
-        opt_config = self.top_down_info.opt_config
-        if opt_config.use_HB_allocation:
+        allocation_mode = self.top_down_info.opt_config.alloc_strategy.mode
+        if allocation_mode == 'HB':
             self._optimize_HB()
-        elif opt_config.use_SH_allocation:
-            self._optimize_SH()
+        elif allocation_mode == 'SSH':
+            self._optimize_static_SH()
         else:
-            self._optimize_normal()
+            self._optimize_basic()
     
     def optimization_entry(
         self,

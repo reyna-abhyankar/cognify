@@ -151,7 +151,6 @@ def create_heavy_search(search_params: SearchParams) -> ControlParameter:
     outer_opt_config = flow.OptConfig(
         n_trials=outer_trials,
         num_parallel_proposal=outer_throughput,
-        use_SH_allocation=True,
     )
     outer_loop_config = driver.LayerConfig(
         layer_name="heavy_outer",

@@ -16,7 +16,7 @@ import sys
 from typing import Optional, Tuple, Type, Iterable
 import logging
 from collections import defaultdict
-import uuid
+import math
 from dataclasses import dataclass, field, asdict, fields
 
 from cognify.graph.program import Module
@@ -144,6 +144,47 @@ class PatienceConfig:
             raise ValueError("patience values should be non-negative")
 
 @dataclass
+class AllocationStrategy:
+    """Configuration for resource allocation strategy
+    
+    Attributes:
+        mode (str): mode of allocation. Defaults to "SSH".
+            base: no allocation strategy
+            SSH: static successive halving use fixed bucket size
+            HB: Hyperband strategy
+            
+        bucket_size (int): bucket size for SSH.
+        
+        prune_rate (int): rate to prune the trials in HB or SSH.
+            for prune_rate = k, only N * k^(-i) of the trials will be kept in the i-th iteration.
+            
+        initial_step_budget (int): initial budget R for SSH.
+            if not set will calcuate based on the total budget.
+    """
+    mode: str = "SSH"
+    bucket_size: int = 4
+    prune_rate: int = 2
+    initial_step_budget: int = -1
+    
+    def set_initial_step_budget(self, next_layer_budget: int):
+        if self.initial_step_budget != -1:
+            return
+        if self.mode == "SSH":
+            self.initial_step_budget = next_layer_budget // self.bucket_size
+        elif self.mode == "HB":
+            # binary search to find the biggest B that satisfies the budget constraint
+            def _budget_enough(b):
+                return (int(math.log(b, self.prune_rate)) + 1) ** 2 * b <= next_layer_budget
+            l, r = 1, next_layer_budget
+            while l < r:
+                mid = (l + r) // 2
+                if _budget_enough(mid):
+                    r = mid
+                else:
+                    l = mid + 1
+            self.initial_step_budget = r
+
+@dataclass
 class OptConfig:
     """Configuration for optimization of each layer
 
@@ -166,11 +207,7 @@ class OptConfig:
 
         frac (float): fraction of the optimization from the last layer.
         
-        use_HB_allocation (bool): whether to use Hyperband strategy.
-        use_SH_allocation (bool): whether to use Successive Halving strategy.
-        prune_rate (int): rate to prune the trials in HB or SH.
-        
-        initial_step_budget (int): initial budget R for HB.
+        alloc_strategy (AllocationStrategy): resource allocation strategy.
     """
     n_trials: int
     num_parallel_proposal: int = field(default=2)
@@ -179,15 +216,15 @@ class OptConfig:
     opt_log_path: str = field(default=None)
     param_save_path: str = field(default=None)
     frugal_eval_cost: bool = field(default=True)
-    use_SH_allocation: bool = field(default=False)
     patience: Optional[PatienceConfig] = field(default_factory=lambda: PatienceConfig(0.01,0.01,0.01,5))
     frac: float = field(default=1.0)
-    use_HB_allocation: bool = field(default=False)
-    use_SH_allocation: bool = field(default=False)
-    prune_rate: int = field(default=2)
-    initial_step_budget: int = field(default=8)
-
+    alloc_strategy: AllocationStrategy = field(default_factory=lambda: AllocationStrategy())
+    
     def finalize(self):
+        """Finalize the save paths
+        
+        This is different from __post_init__ because the log_dir can be set by the upper layer dynamically
+        """
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir, exist_ok=True)
         if self.opt_log_path is None:
@@ -200,7 +237,6 @@ class OptConfig:
         for f in fields(other):
             if getattr(self, f.name) is None:
                 setattr(self, f.name, getattr(other, f.name))
-                
     
     @classmethod
     def _set_log_dir_for_next(cls, log_dir: str):
@@ -213,9 +249,9 @@ class OptConfig:
             opt_log_path=None,
             param_save_path=None,
             frugal_eval_cost=None,
-            use_SH_allocation=None,
             patience=None,
             frac=None,
+            alloc_strategy=None,
         )
 
 @dataclass
