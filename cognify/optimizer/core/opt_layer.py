@@ -379,7 +379,7 @@ class OptLayer(OptLayerInterface):
                 reduced_price=float(0xDEADBEEF),
                 reduced_score=0,
                 reduced_exec_time=float(0xDEADBEEF),
-                meta={"converged": self._converged},
+                converged=self._converged,
             )
             
         inner_log_ids, scores, prices, exec_times = [], [], [], []
@@ -402,7 +402,7 @@ class OptLayer(OptLayerInterface):
             reduced_score=reduced_score,
             reduced_price=reduced_price,
             reduced_exec_time=reduced_exec_time,
-            meta={"converged": self._converged},
+            converged=self._converged,
         )
         return result
 
