@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Union, Optional
+from typing import Union, Optional, Callable
 import logging
 import re
 
@@ -8,8 +8,9 @@ from cognify.optimizer.evaluator import (
     EvaluationResult,
     EvaluatorPlugin,
     EvalTask,
+    GeneralEvaluatorInterface,
 )
-from cognify.optimizer.core.flow import TrialLog, TopDownInformation, LayerConfig
+from cognify.optimizer.core.flow import TrialLog, LayerConfig
 from cognify.optimizer.core.opt_layer import OptLayer, get_pareto_front, _log_optimization_results, filter_by_constraint
 from cognify.optimizer.control_param import SelectedObjectives
 from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv, _report_latency_reduction
@@ -19,7 +20,7 @@ from cognify.optimizer.core.common_stats import CommonStats
 logger = logging.getLogger(__name__)
 
 def get_layer_evaluator_factory(
-    next_layer_factory, 
+    next_layer_factory: Callable[[], GeneralEvaluatorInterface], 
     layer_config: LayerConfig,
     level: int,
     is_leaf: bool
@@ -65,10 +66,11 @@ class MultiLayerOptimizationDriver:
         CommonStats.objectives = objectives
         CommonStats.quality_constraint = quality_constraint
         CommonStats.base_quality = base_quality
-        CommonStats.base_price = base_cost
+        CommonStats.base_cost = base_cost
         CommonStats.base_exec_time = base_exec_time
 
         # initialize optimization layers
+        # NOTE: also included the evaluator in this list
         self.opt_layer_factories: list[callable] = [None] * (len(layer_configs) + 1)
 
         self.opt_log_dir = opt_log_dir
@@ -85,8 +87,11 @@ class MultiLayerOptimizationDriver:
 
     def build_tiered_optimization(self, evaluator: EvaluatorPlugin):
         """Build tiered optimization from bottom to top"""
+        
+        # Add the evaluator as the special next-level for the innermost optimization layer
         self.opt_layer_factories[-1] = lambda: evaluator
         
+        # Build all optimization layers
         for ri, layer_config in enumerate(reversed(self.layer_configs)):
             idx = len(self.layer_configs) - ri - 1
             next_layer_factory = self.opt_layer_factories[idx + 1]
@@ -103,7 +108,7 @@ class MultiLayerOptimizationDriver:
         self.build_tiered_optimization(evaluator)
         logger.info("----------------- Start Optimization -----------------")
         top_layer = self.opt_layer_factories[0]()
-        pareto_frontier = top_layer.exposed_optimize(
+        pareto_frontier = top_layer.optimization_entry(
             script_path=script_path,
             script_args=script_args,
             other_python_paths=other_python_paths,
@@ -151,8 +156,8 @@ class MultiLayerOptimizationDriver:
         print(f"=========== Evaluation Results ===========")
         if CommonStats.base_quality is not None:
             print("  Quality improvement: {:.0f}%".format(_report_quality_impv(eval_result.reduced_score, CommonStats.base_quality)))
-        if CommonStats.base_price is not None:
-            print("  Cost is {:.2f}x original".format(_report_cost_reduction(eval_result.reduced_price, CommonStats.base_price)))
+        if CommonStats.base_cost is not None:
+            print("  Cost is {:.2f}x original".format(_report_cost_reduction(eval_result.reduced_price, CommonStats.base_cost)))
         if CommonStats.base_exec_time is not None:
             print("  Execution time is {:.2f}x original".format(_report_latency_reduction(eval_result.reduced_exec_time, CommonStats.base_exec_time)))
         print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, Execution time: {:.2f}s".format(eval_result.reduced_score, eval_result.reduced_price * 1000, eval_result.reduced_exec_time))
@@ -199,8 +204,8 @@ class MultiLayerOptimizationDriver:
                 quality_improvement = _report_quality_impv(trial_log.score, CommonStats.base_quality)
                 details += ("  Quality improves by {:.0f}%\n".format(quality_improvement))
                 trace_quality_improvement(quality_improvement)
-            if CommonStats.base_price is not None:
-                cost_improvement = _report_cost_reduction(trial_log.price, CommonStats.base_price)
+            if CommonStats.base_cost is not None:
+                cost_improvement = _report_cost_reduction(trial_log.price, CommonStats.base_cost)
                 details += ("  Cost is {:.2f}x original".format(cost_improvement))
                 trace_cost_improvement(cost_improvement)
             if CommonStats.base_exec_time is not None:

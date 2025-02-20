@@ -19,7 +19,7 @@ def create_text_to_sql_search(search_params: SearchParams) -> ControlParameter:
     # ================= Inner Loop Config =================
     inner_opt_config = flow.OptConfig(
         n_trials=5,
-        throughput=2,
+        num_parallel_proposal=2,
     )
     inner_loop_config = driver.LayerConfig(
         layer_name='inner_loop',
@@ -50,7 +50,7 @@ def create_text_to_sql_search(search_params: SearchParams) -> ControlParameter:
     outer_throughput = 2 if outer_trials > 2 else outer_trials
     outer_opt_config = flow.OptConfig(
         n_trials=outer_trials,
-        throughput=outer_throughput,
+        num_parallel_proposal=outer_throughput,
     )
 
     outer_loop_config = driver.LayerConfig(

@@ -45,7 +45,7 @@ def create_codegen_search(search_params: SearchParams) -> ControlParameter:
 
     outer_opt_config = flow.OptConfig(
         n_trials=outer_trials,
-        throughput=outer_throughput,
+        num_parallel_proposal=outer_throughput,
     )
     outer_loop_config = driver.LayerConfig(
         layer_name="codegen_outer_loop",

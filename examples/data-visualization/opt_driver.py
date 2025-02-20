@@ -150,7 +150,7 @@ def opt(train, val, test):
     
     inner_opt_config = flow.OptConfig(
         n_trials=0,
-        throughput=2,
+        num_parallel_proposal=2,
         log_dir="/mnt/ssd4/lm_compiler/examples/IR_matplot_agent/opt_4omini_reason.log",
         evolve_interval=2,
         frugal_eval_cost=False,

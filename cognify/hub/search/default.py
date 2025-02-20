@@ -90,7 +90,7 @@ def create_medium_search(search_params: SearchParams) -> ControlParameter:
     outer_throughput = 2 if outer_trials > 2 else outer_trials
     outer_opt_config = flow.OptConfig(
         n_trials=outer_trials,
-        throughput=outer_throughput
+        num_parallel_proposal=outer_throughput
     )
     outer_loop_config = driver.LayerConfig(
         layer_name="medium_outer",
@@ -150,7 +150,7 @@ def create_heavy_search(search_params: SearchParams) -> ControlParameter:
     outer_throughput = 2 if outer_trials > 2 else outer_trials
     outer_opt_config = flow.OptConfig(
         n_trials=outer_trials,
-        throughput=outer_throughput,
+        num_parallel_proposal=outer_throughput,
         use_SH_allocation=True,
     )
     outer_loop_config = driver.LayerConfig(

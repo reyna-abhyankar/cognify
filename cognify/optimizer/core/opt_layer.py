@@ -772,7 +772,7 @@ class OptLayer(OptLayerInterface):
                 opt_cost=self.opt_cost
             )
         
-        with ThreadPoolExecutor(max_workers=opt_config.throughput) as executor:
+        with ThreadPoolExecutor(max_workers=opt_config.num_parallel_proposal) as executor:
             futures = [
                 executor.submit(self._optimize_iteration)
                 for _ in range(opt_config.n_trials)
@@ -802,7 +802,7 @@ class OptLayer(OptLayerInterface):
                     if result and result.complete:
                         self._save_opt_ckpt()
     
-    def exposed_optimize(
+    def optimization_entry(
         self,
         script_path: str,
         script_args: Optional[list[str]] = None,
@@ -840,8 +840,8 @@ def _log_optimization_results(pareto_frontier: list[TrialLog]):
         # logger.info("  Params: {}".format(trial_log.params))
         if CommonStats.base_quality is not None:
             print("  Quality improvement: {:.0f}%".format(_report_quality_impv(trial_log.score, CommonStats.base_quality)))
-        if CommonStats.base_price is not None:
-            print("  Cost: {:.2f}x original".format(_report_cost_reduction(trial_log.price, CommonStats.base_price)))
+        if CommonStats.base_cost is not None:
+            print("  Cost: {:.2f}x original".format(_report_cost_reduction(trial_log.price, CommonStats.base_cost)))
         if CommonStats.base_exec_time is not None:
             print("  Execution time: {:.2f}x original".format(_report_latency_reduction(trial_log.exec_time, CommonStats.base_exec_time)))
         print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, Execution time: {:.2f}s".format(trial_log.score, trial_log.price * 1000, trial_log.exec_time))

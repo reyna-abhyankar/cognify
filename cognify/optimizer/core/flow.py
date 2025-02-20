@@ -150,7 +150,7 @@ class OptConfig:
     Attributes:
         n_trials (int): number of iterations of search.
 
-        throughput (int, optional): number of trials to run in parallel. Defaults to 2.
+        num_parallel_proposal (int, optional): number of proposals to make at once, each will be optimized/evaluated in parallel. Defaults to 2.
 
         log_dir (str): directory to save logs.
 
@@ -169,7 +169,7 @@ class OptConfig:
         frac (float): fraction of the optimization from the last layer.
     """
     n_trials: int
-    throughput: int = field(default=2)
+    num_parallel_proposal: int = field(default=2)
     log_dir: str = field(default=None)
     evolve_interval: int = field(default=2)
     opt_log_path: str = field(default=None)
@@ -199,7 +199,7 @@ class OptConfig:
         # set other fields to None so that the next layer can populate
         return cls(
             n_trials=None,
-            throughput=None,
+            num_parallel_proposal=None,
             log_dir=log_dir,
             evolve_interval=None,
             opt_log_path=None,
