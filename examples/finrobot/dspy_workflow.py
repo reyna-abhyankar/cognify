@@ -9,7 +9,7 @@ import dspy
 from dspy.teleprompt import MIPROv2
 from dspy.evaluate import Evaluate
 from dspy_agents import *
-from config import load_data, evaluate_dspy
+from config import load_data, evaluate_for_dspy_trace
 
 dotenv.load_dotenv()
 
@@ -182,12 +182,12 @@ all_test_examples = [convert_to_example(input) for input in all_test]
 
 ## dspy optimization ##
 teacher_lm = dspy.LM("gpt-4o", temperature=0, cache=False)
-teleprompter = MIPROv2(metric=evaluate_dspy, num_threads=20, task_model=teacher_lm, prompt_model=teacher_lm, max_errors=15)
+teleprompter = MIPROv2(metric=evaluate_for_dspy_trace, num_threads=20, task_model=teacher_lm, prompt_model=teacher_lm, max_errors=15)
 
 optimized_fin_robot = teleprompter.compile(fin_robot, 
                                            trainset=all_train_examples,
                                            num_trials=64)
 
 ## evaluation ##
-evaluate_program = Evaluate(devset=all_test_examples, metric=evaluate_dspy, display_progress=True, display_table=False, num_threads=20, max_errors=10)
+evaluate_program = Evaluate(devset=all_test_examples, metric=evaluate_for_dspy_trace, display_progress=True, display_table=False, num_threads=20, max_errors=10)
 val_acc = evaluate_program(optimized_fin_robot)

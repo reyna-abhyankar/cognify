@@ -10,7 +10,7 @@ import dspy
 from dspy.teleprompt import MIPROv2
 from dspy.evaluate import Evaluate
 from dspy_agents import *
-from config import load_data, evaluate_trace
+from config import load_data, evaluate_for_dspy_trace
 import time
 from tqdm import tqdm
 from opto.trace import node, bundle, model, ExecutionError
@@ -197,7 +197,7 @@ for i in range(epochs):
         try:
             response = fin_robot(task=example.task)
             try:
-                correctness = evaluate_trace(example, response.data)
+                correctness = evaluate_for_dspy_trace(example, response.data)
                 if correctness > 0.8:
                     feedback = "The answer is correct! No need to change anything."
                 else:
@@ -228,7 +228,7 @@ def eval(test_set):
     for example in tqdm(test_set):
         try:
             result = fin_robot(task=example.task)
-            score = evaluate_trace(example, result.data)
+            score = evaluate_for_dspy_trace(example, result.data)
             total_score += score
         except:
             pass
