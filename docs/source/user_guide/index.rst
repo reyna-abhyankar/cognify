@@ -38,3 +38,4 @@ Welcome! This guide provides tutorials, tips, and resources to help you get the 
     ../examples/math/ref
     ../examples/data-visualization/ref
     ../examples/text-to-sql/ref
+    ../examples/finrobot/ref

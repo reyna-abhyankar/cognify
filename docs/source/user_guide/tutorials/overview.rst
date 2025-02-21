@@ -3,7 +3,7 @@ Overview
 **********
 
 Cognify, a comprehensive, multi-objective gen-AI workflow optimizer. Cognify transforms gen-AI workflow programs into optimized workflows with multi-faceted optimization goals, including high workflow generation quality and low workflow execution cost. 
-Cognify achieves up to 56% higher generation quality and reduces workflow execution cost by up to 11 times.
+Cognify offers improvements of up to 2.8x in generation quality, up to 10x cost reduction, and up to 2.7x reduction in end-to-end latency.
 It pushes the cost-quality Pareto frontier over SoTA solutions like DSPy, and it allows users to choose their preferred cost-quality combinations. Moreover, Cognify automates the entire optimization process with one click. 
 
 The core idea of Cognify is to perform optimizations at the workflow level instead of at each individual workflow component. Since upstream components’ generation highly affects how downstream components perform, optimizing components in isolation does not work and could even negatively impact the final generation quality and workflow execution costs. 
