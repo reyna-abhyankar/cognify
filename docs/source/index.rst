@@ -19,7 +19,7 @@ Cognify documentation
 `Source Repository <https://github.com/GenseeAI/cognify>`_ |
 `Blog Post <https://mlsys.wuklab.io/posts/cognify/>`_
 
-Cognify is a fully automated optimizer for generative AI (gen-AI) workflows. It transforms user-provided workflows into a set of optimized versions with diverse quality-cost trade-offs. Cognify performs optimizations on individual steps within a workflow and also the workflow structure, with a multi-layer hierarchical optimization framework. Cognify offers improvements of up to 48% in quality and up to 9x cost reduction.
+Cognify is a fully automated optimizer for generative AI (gen-AI) workflows. It transforms user-provided workflows into a set of optimized versions with diverse quality-cost-latency trade-offs. Cognify performs optimizations on individual steps within a workflow and also the workflow structure, with a multi-layer hierarchical optimization framework. Cognify offers improvements of up to 2.8x in generation quality, up to 10x cost reduction, and up to 2.7x reduction in end-to-end latency.
 
 
 
