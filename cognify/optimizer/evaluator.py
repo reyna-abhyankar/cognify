@@ -66,6 +66,7 @@ class EvaluationResult:
         reduced_price: Optional[float] = None,
         reduced_exec_time: Optional[float] = None,
         demos: Optional[Sequence[TDemoInTrial]] = None,
+        converged: bool = False,
         meta: Optional[dict] = None,
     ) -> None:
         self.ids = ids
@@ -78,6 +79,7 @@ class EvaluationResult:
         self.reduced_price = reduced_price
         self.reduced_exec_time = reduced_exec_time
         self.demos = demos
+        self.converged = converged
         self.meta = meta
 
     def __str__(self) -> str:
@@ -101,6 +103,7 @@ class EvaluationResult:
             "reduced_price": self.reduced_price,
             "reduced_exec_time": self.reduced_exec_time,
             "total_eval_cost": self.total_eval_cost,
+            "converged": self.converged,
             "complete": self.complete,
         }
         stats["detailed"] = []
@@ -129,6 +132,7 @@ class EvaluationResult:
             reduced_score=data["summary"]["reduced_score"],
             reduced_price=data["summary"]["reduced_price"],
             reduced_exec_time=data["summary"]["reduced_exec_time"],
+            converged=data["summary"]["converged"],
         )
 
 

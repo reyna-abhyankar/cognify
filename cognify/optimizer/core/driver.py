@@ -94,9 +94,20 @@ class MultiLayerOptimizationDriver:
         # Build all optimization layers
         for ri, layer_config in enumerate(reversed(self.layer_configs)):
             idx = len(self.layer_configs) - ri - 1
+            self.check_update_layer_config(idx)
             next_layer_factory = self.opt_layer_factories[idx + 1]
             current_layer_factory = get_layer_evaluator_factory(next_layer_factory, layer_config, idx, ri == 0)
             self.opt_layer_factories[idx] = current_layer_factory
+    
+    def check_update_layer_config(self, idx: int):
+        opt_config = self.layer_configs[idx].opt_config
+        if idx == len(self.layer_configs) - 1:
+            if opt_config.alloc_strategy.mode != "base":
+                logger.info(f"You are using {opt_config.alloc_strategy.mode} allocation strategy for the last layer, which will be ignored")
+                opt_config.alloc_strategy.mode = "base"
+        else:
+            # calculate the initial step budget for SSH strategy if set
+            opt_config.alloc_strategy.set_initial_step_budget(self.layer_configs[idx + 1].opt_config.n_trials)
 
     def run(
         self,
@@ -190,7 +201,7 @@ class MultiLayerOptimizationDriver:
             self.dump_frontier_details(pareto_frontier)
         return
 
-    def dump_frontier_details(self, frontier):
+    def dump_frontier_details(self, frontier: list[TrialLog]):
         param_log_dir = os.path.join(self.opt_log_dir, "optimized_workflow_details")
         if not os.path.exists(param_log_dir):
             os.makedirs(param_log_dir, exist_ok=True)

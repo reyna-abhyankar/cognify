@@ -58,7 +58,8 @@ class SelectedObjectives:
 @dataclasses.dataclass
 class ControlParameter:
     opt_layer_configs: list[LayerConfig]
-    objectives: SelectedObjectives
+    objectives: SelectedObjectives = dataclasses.field(
+        default_factory=lambda: SelectedObjectives(True, True, True))
     opt_history_log_dir: str = "opt_results"
     quality_constraint: float = 1.0
     train_down_sample: int = 0
