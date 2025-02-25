@@ -4,7 +4,7 @@ from typing import Union, Callable
 import logging
 import shutil
 
-from cognify.optimizer.core.flow import TrialLog
+from cognify.optimizer.trace.checkpoint import TrialLog
 from cognify._signal import _should_exit, _init_exit_gracefully
 from cognify.optimizer.control_param import ControlParameter
 from cognify.optimizer.core import driver

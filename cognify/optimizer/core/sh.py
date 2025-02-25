@@ -75,7 +75,7 @@ class SuccessiveHalving:
             if len(self.can_continue) == 0:
                 break
             
-            # print(f"SH next with {self.ready_to_run}, budget: {self.initial_step_budget * self.prune_rate ** i}")
+            # print(f"SH next with {self.can_continue}, budget: {self.initial_step_budget * self.prune_rate ** sh_iter}")
             for j in self.can_continue:
                 self.num_inner_trials[j] += int(self.initial_step_budget * self.prune_rate ** sh_iter)
                 self.selected_runs[j].opt_config.n_trials = int(self.initial_step_budget * self.prune_rate ** sh_iter)
